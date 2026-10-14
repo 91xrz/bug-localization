@@ -1,4 +1,5 @@
-# Direct dependencies for the initial data inspection environment (Python 3.12).
+# Direct dependencies for data inspection and lexical retrieval (Python 3.12).
 # Complete tested versions: configs/environment/requirements.lock.txt
 datasets==5.1.0
 pyarrow==26.0.0
+elasticsearch==9.5.1
