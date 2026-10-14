@@ -1,0 +1,46 @@
+# Local datasets, downloaded models, and generated experiment outputs.
+/datasets/
+/models/
+/results/
+/repos/
+/repositories/
+/cache/
+/.cache/
+/.build/
+
+# Python environments and generated caches.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+*.egg-info/
+/build/
+/dist/
+
+# IDE and local machine settings.
+.idea/
+.vscode/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+Thumbs.db
+
+# Data/model binaries and downloaded archives, including stray files.
+*.arrow
+*.parquet
+*.safetensors
+*.pt
+*.pth
+*.onnx
+*.bin
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.tgz
