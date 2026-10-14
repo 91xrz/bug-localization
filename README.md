@@ -1,6 +1,6 @@
 # Bug Localization
 
-基于 Elasticsearch 的文件级缺陷定位基准项目，以缺陷报告查询修复前代码快照。目前已完成数据准备与 BM25 单样本验证；向量检索、混合检索和完整基准评测待实现。
+基于 Elasticsearch 的文件级缺陷定位基准项目，以缺陷报告查询修复前代码快照。目前已完成数据准备、BM25 单样本验证及小批量评测与汇总；向量检索、混合检索和完整基准评测待实现。
 
 ## 1. Python 环境
 
@@ -73,15 +73,45 @@ ES 启动后，在另一终端或 PyCharm 中运行：
 - 每个可按 UTF-8 解码且不超过 2 MiB 的 `.py` 文件建立一个文档；包含 Python 测试及随仓库发布的 Python 依赖文件。结果记录所有候选文件及排除原因。
 - 分词拆分标点、下划线和驼峰，统一小写。BM25 使用 `k1=1.2`、`b=0.75`，未按测试成绩调参。
 - 本地 SWE-bench 的 `body` 包含原始问题标题，单独的 `title` 可能来自修复 PR，因此只允许用 `body` 查询。
-- 最多取 512 个不同的已分词查询项，以 OR 方式执行 BM25 term 查询，避免再次分词；默认返回前 50 个匹配文件。
+- 最多取 512 个不同的已分词查询项，以 OR 方式执行 BM25 term 查询，避免再次分词；默认返回前 10 个匹配文件。
 - 标签只用于结果核对。候选集之外的标签会明确列出，仍保留在指标分母中。
 - 索引绑定仓库、修复前提交和代码/配置指纹，可复用或恢复未完成的写入，避免混用不同快照。
 
-输出 Top-1/5/10 命中、Recall@K、倒数排名@K、AP@K，默认 K=50。单个报告的结果仅用于流程验证，截断指标不能直接当作完整基准的 MRR/MAP。Ye 缺少修复前 SHA，需要先核实提交。
+输出 Top-1/5/10 命中、Recall@K、倒数排名@K、AP@K，默认 K=10。单个报告的结果仅用于流程验证，截断指标不能直接当作完整基准的 MRR/MAP。Ye 缺少修复前 SHA，需要先核实提交。
 
 结果在 `results/bm25/psf__requests-1142/`：`result.json` 保存版本、查询、候选、排名、标签和指标；`effective_config.json` 保存本次配置。
 
-## 5. 文件组织
+## 5. 小批量评测与汇总
+
+默认按 SWE-bench 原始顺序选择 `psf/requests` 的前 5 个缺陷，每个缺陷使用其自己的修复前提交。选择不依赖检索成绩，批量配置在 `configs/retrieval/bm25_batch.json`，检索设置复用 `bm25.json`。
+
+```powershell
+.\.venv\Scripts\python.exe -B scripts\retrieval\run_bm25_batch.py
+```
+
+PyCharm 可直接运行同名脚本。调整数量或仓库过滤条件：
+
+```powershell
+.\.venv\Scripts\python.exe -B scripts\retrieval\run_bm25_batch.py --limit 10 --repository psf/requests
+```
+
+小批量上限为 50；不足请求数量时使用实际选中的数量，并在结果中记录。首次运行可能获取每个提交的代码快照，不下载软件安装包；相同快照复用缓存及 ES 索引。
+
+每次运行创建独立的 `results/bm25/batches/<run_id>/`：
+
+| 文件 | 内容 |
+| --- | --- |
+| `selection.json` | 样本顺序、数据行号、修复前 SHA、查询与标签指纹；供向量/RRF 评测核对同一批样本 |
+| `effective_config.json` | 本次检索配置、仓库过滤和数量 |
+| `samples.json`、`samples.csv` | 每个样本的成功/失败、AP@K、RR@K、Top-1/5/10、标签覆盖及耗时 |
+| `summary.json`、`summary.csv` | MAP@K、MRR@K、Top-K 命中率、平均 Recall@K，以及样本数、失败数和覆盖情况 |
+| `cases/` | 每个缺陷的完整排名与查询；失败时保存错误信息 |
+
+主汇总使用全部选中样本作分母，执行失败贡献 0；同时提供 `metrics_successful_only`，只对成功执行的样本求平均，并明确列出所有失败。候选集之外的标签依然保留在单样本 AP/Recall 分母。进行中的检查点不输出最终主指标；全批次尝试结束后才标为 `completed`。存在失败时脚本退出码为 1。
+
+默认 K=10，因此报告 **MAP@10 / MRR@10 / MeanRecall@10**；第 10 名之后的相关文件不贡献 AP 或倒数排名，AP 和 Recall 的分母仍包含全部真实相关文件。Top-1/5/10 为至少命中一个标签的样本比例，平均 Recall 是按样本取平均。操作失败与检索未命中是不同情况，应结合成功率阅读主指标；失败计零口径不能隐藏网络或数据问题。这是一个仓库的小子集，不代表完整基准性能。
+
+## 6. 文件组织
 
 | 目录或文件 | 用途 | 上传仓库 |
 | --- | --- | --- |
@@ -96,7 +126,7 @@ ES 启动后，在另一终端或 PyCharm 中运行：
 
 完整版本锁定清单保留用于复现；软件安装和启动脚本保留用于新机器安装、重新配置和日常使用。
 
-## 6. 检查
+## 7. 检查
 
 ```powershell
 .\.venv\Scripts\python.exe -B -m unittest discover -s tests -v
