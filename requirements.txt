@@ -1,5 +1,13 @@
-# Direct dependencies for data inspection and lexical retrieval (Python 3.12).
-# Complete tested versions: configs/environment/requirements.lock.txt
-datasets==5.1.0
-pyarrow==26.0.0
-elasticsearch==9.5.1
+# Full tested environment: Windows / Python 3.12 / CUDA 12.8.
+# BM25 only: configs/environment/requirements-base.txt
+# All installed versions: configs/environment/requirements.lock.txt
+--index-url https://pypi.org/simple
+--extra-index-url https://download.pytorch.org/whl/cu128
+
+-r configs/environment/requirements-base.txt
+
+numpy==2.5.4
+torch==2.11.0+cu128
+transformers==5.19.0
+tree-sitter==0.26.0
+tree-sitter-python==0.25.0
