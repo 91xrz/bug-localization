@@ -1,0 +1,5 @@
+{
+  "base_config": "configs/retrieval/bm25.json",
+  "repositories": ["psf/requests"],
+  "limit": 5
+}

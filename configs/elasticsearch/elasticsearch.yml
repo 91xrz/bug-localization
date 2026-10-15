@@ -1,0 +1,10 @@
+# Local development node; HTTP and transport are restricted to loopback.
+cluster.name: bug-localization-local
+node.name: bug-localization-node
+network.host: 127.0.0.1
+http.port: 9200
+transport.port: 9300
+discovery.type: single-node
+xpack.security.enabled: false
+xpack.security.enrollment.enabled: false
+xpack.ml.enabled: false

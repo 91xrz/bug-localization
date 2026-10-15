@@ -1,0 +1,6 @@
+{
+  "version": "9.5.5",
+  "url": "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-9.5.5-windows-x86_64.zip",
+  "sha512": "532eae2f3a00ea3234ba97cb2d2a727a87b569a1f33b173f6ec700fb86ad067d878812e3afe1eed734482aea71053edeeeaaa6b73e9963bd8b81559e02ce42a0",
+  "checksum_url": "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-9.5.5-windows-x86_64.zip.sha512"
+}

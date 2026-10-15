@@ -1,0 +1,15 @@
+{
+  "endpoint": "http://127.0.0.1:9200",
+  "cluster_name": "bug-localization-local",
+  "dataset": "swe_bench_formatted",
+  "split": "test",
+  "repository": "psf/requests",
+  "issue_id": 1142,
+  "query_fields": ["body"],
+  "extensions": [".py"],
+  "exclude_directories": [".git", ".venv", "__pycache__", "node_modules"],
+  "max_file_bytes": 2097152,
+  "max_query_terms": 512,
+  "top_k": 10,
+  "bm25": {"k1": 1.2, "b": 0.75}
+}

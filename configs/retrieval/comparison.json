@@ -1,0 +1,7 @@
+{
+  "bm25_config": "configs/retrieval/bm25.json",
+  "vector_config": "configs/retrieval/vector.json",
+  "repositories": ["psf/requests"],
+  "limit": 44,
+  "evaluation_k": 10
+}

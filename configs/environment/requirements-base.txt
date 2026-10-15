@@ -1,0 +1,4 @@
+# Data inspection and BM25 only; no embedding runtime is required.
+datasets==5.1.0
+pyarrow==26.0.0
+elasticsearch==9.5.1
