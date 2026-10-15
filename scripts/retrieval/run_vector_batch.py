@@ -9,6 +9,7 @@ PROJECT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT / 'src'))
 
 from bug_localization.vector import run_semantic_batch
+from bug_localization.aggregation import AGGREGATIONS
 
 
 def main():
@@ -18,6 +19,8 @@ def main():
     parser.add_argument('--limit', type=int, help='First matching samples in dataset order (1-50)')
     parser.add_argument('--repository', action='append', help='Repeat to select multiple repositories')
     parser.add_argument('--device', choices=['cpu', 'cuda'])
+    parser.add_argument('--aggregation', choices=AGGREGATIONS, help='Primary file ranking; all three aggregations are evaluated')
+    parser.add_argument('--temperature', type=float, help='Normalized LogSumExp temperature (default 0.1)')
     fusion = parser.add_mutually_exclusive_group()
     fusion.add_argument('--fusion', dest='enable_fusion', action='store_true', default=None,
                         help='Also evaluate the two-route and three-route RRF controls')
@@ -38,6 +41,10 @@ def main():
         config['repositories'] = args.repository
     if args.device:
         config['device'] = args.device
+    if args.aggregation:
+        config['file_aggregation'] = args.aggregation
+    if args.temperature is not None:
+        config['aggregation_temperature'] = args.temperature
     if args.enable_fusion is not None:
         config['enable_fusion'] = args.enable_fusion
     _, summary = run_semantic_batch(PROJECT, config)

@@ -12,7 +12,7 @@
 | 总输入 | 最多 512 tokens，包含前缀、分隔符和特殊 token |
 | 结构前缀 | 最多 64 tokens，由同一个 Qwen tokenizer 计数 |
 | 固定块正文 | 最多 400 tokens，无重叠，保留末块 |
-| 文件得分 | 文件内所有块的最高余弦相似度 |
+| 文件得分 | 默认 Max；同时评测 Top-3 Mean、Normalized LogSumExp（τ=0.1） |
 | 评测 | MAP@10、MRR@10、Top-1/5/10、MeanRecall@10 |
 
 安装依赖统一使用根目录 `requirements.txt`。编码器直接使用 Transformers，`local_files_only=True`、`trust_remote_code=False`；不需要 Sentence Transformers、llama-index 或 Flash Attention。
@@ -45,9 +45,9 @@ SWE-bench 仅从 `body` 取报告；固定任务指令也计入 512-token 上限
 
 ## ES 检索与缓存
 
-每块一个 ES 文档，向量字段为 `dense_vector`、`index=false`。`script_score` 精确计算当前快照所有块的 `1 + cosineSimilarity`，再按 `file_path` 折叠得到每个文件最高分的块和完整文件排名。这是精确向量检索，当前没有使用 ANN。
+每块一个 ES 文档，向量字段为 `dense_vector`、`index=false`。`script_score` 精确计算当前快照所有块的 `1 + cosineSimilarity`，通过 scroll 取回全部块分数，再减去偏移 1，按文件计算三种聚合。不会先折叠文件而丢失其他块，也不会只获取全局前 K 个块。这是精确向量检索，当前没有使用 ANN。
 
-先完成文件排名，再取前 10 计算指标，不能先取 10 个代码块再去重。每次独立用 NumPy 核对全部文件的最大余弦相似度，容差 `2e-5`；验证不参与排名。同分按相对路径排序，近似浮点同分的顺序另有核对字段。
+先完成文件排名，再取前 10 计算指标。每次独立用 NumPy 核对每个块的余弦相似度及全部三种文件聚合分数，容差 `2e-5`；验证不参与排名。同分按相对路径排序，近似浮点同分的顺序另有核对字段。聚合公式和九组对比见 [文件聚合说明](file-aggregation.md)。
 
 - `cache/embeddings/`：按模型文件 SHA-256、编码实现、库版本、精度和设备生成指纹。SQLite 保存文本向量及校验和，读取时验证维度、有限值及归一化。
 - `cache/chunks/`：按相对路径、源码指纹、模型、分块参数及实现缓存完整分块，核对校验和、源码覆盖、字节边界和预算。不同快照中未变化的文件可以复用。
@@ -68,10 +68,13 @@ ES 启动后，在项目根目录运行：
 | 路径 | 内容 |
 | --- | --- |
 | `summary.json/csv` | 各路线主指标、成功数、失败数及缓存统计 |
+| `aggregation_summary.json/csv` | 三种分块 × 三种聚合的九组指标 |
+| `aggregation_samples.json/csv` | 九组逐报告指标及共同 Chunk 分数指纹 |
 | `selection.json`、`effective_config.json` | 样本、标签与查询指纹，模型文件及实现版本 |
 | `dynamic/`、`method/`、`fixed/` | 各路线逐报告结果和汇总 |
 | `cases/*/candidates.json`、`query.json` | 候选清单、排除原因和实际模型查询 |
 | `cases/*/*_chunks.json` | 分块、真实前缀、原始边界及 token 数 |
+| `cases/*/*_chunk_scores.json` | 所有 Chunk 的原始余弦分数及校验值，供三种聚合共同使用 |
 | `cases/*/*_result.json` | 完整文件排名、最佳命中块、指标及 ES 核对 |
 | `cases/*/*error.json` | 运行失败时的诊断 |
 

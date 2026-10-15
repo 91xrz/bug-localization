@@ -13,6 +13,7 @@
 | `src/bug_localization/chunk_cache.py` | 按源码、参数和实现指纹复用并校验分块 |
 | `src/bug_localization/embeddings.py` | 本地模型编码、池化、归一化及 SQLite 向量缓存 |
 | `src/bug_localization/vector.py` | ES 向量检索、文件聚合、独立分数验证及可选融合 |
+| `src/bug_localization/aggregation.py` | 同一份 Chunk 相似度上的 Max、Top-3 Mean、稳定归一化 LogSumExp |
 | `src/bug_localization/comparison.py` | 绑定同一样本清单，对比 BM25 和三条语义路线 |
 | `src/bug_localization/__init__.py` | Python 包标识 |
 | `scripts/environment/verify_environment.py` | 环境检查；`--semantic` 检查编码依赖与 CUDA；`--check-data` 检查本地数据 |
@@ -45,10 +46,12 @@
 - [elasticsearch.md](elasticsearch.md)：手动下载安装包、配置和启停。
 - [semantic-retrieval.md](semantic-retrieval.md)：分块、结构前缀、编码、检索、缓存和可选融合。
 - [evaluation.md](evaluation.md)：当前 44 条结果、指标定义、验证与限制。
+- [file-aggregation.md](file-aggregation.md)：三种文件级聚合、参数、九组对比入口和结果。
 - `references/blaze/processor.py`、`convert_to_chunks.py`：用户提供的 BLAZE 原始代码，原样保存供核对，不是运行入口；同目录 README 记录来源与校验值。
 - `tests/test_bm25_inputs.py`、`test_bm25_metrics.py`、`test_bm25_batch.py`：词法输入、指标和批次规则测试。
 - `tests/test_vector.py`：分块、前缀、缓存、编码输入及融合规则测试，包括对原始动态算法的核对。
 - `tests/test_comparison.py`：四路对比的清单绑定、候选与查询一致性、指标汇总测试。
+- `tests/test_aggregation.py`：聚合公式、归一化、数值稳定性、完整分数清单与九组汇总测试。
 
 ## 仅保存在本机的目录
 

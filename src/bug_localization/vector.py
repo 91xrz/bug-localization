@@ -10,6 +10,7 @@ import time
 import traceback
 
 from .batch import aggregate_results, select_samples, write_checkpoints, write_json
+from .aggregation import AGGREGATIONS, aggregate_chunk_scores, validate_temperature
 from .bm25 import collect_files, prepare_report, ranking_metrics, validate_config
 from .chunking import PythonChunker
 from .chunk_cache import ChunkCache
@@ -30,6 +31,9 @@ def active_fusions(config):
 def validate_vector_config(config, base):
     validate_config(base)
     active_fusions(config)
+    if config.get('file_aggregation', 'max') not in AGGREGATIONS:
+        raise ValueError('Unknown file_aggregation')
+    validate_temperature(config.get('aggregation_temperature', 0.1))
     if base['extensions'] != ['.py']:
         raise ValueError('The initial semantic pipeline supports Python candidates only')
     for field, minimum, maximum in [('max_tokens', 128, 32768), ('prefix_max_tokens', 16, 256),
@@ -112,8 +116,9 @@ def select_reports(project, config, base):
                       'samples': manifest}
 
 
-def retrieve(client, documents, chunks, vectors, query_vector, identity):
-    """Score all chunks in ES; collapse by file BEFORE choosing the file top K."""
+def retrieve(client, documents, chunks, vectors, query_vector, identity,
+             file_aggregation='max', temperature=0.1):
+    """Score every chunk once in ES, then compare three file aggregations."""
     import numpy as np
     from elasticsearch import helpers
 
@@ -142,40 +147,74 @@ def retrieve(client, documents, chunks, vectors, query_vector, identity):
         client.indices.refresh(index=index)
     if client.count(index=index)['count'] != len(chunks):
         raise ValueError('Vector index document count mismatch')
-    if len(documents) > 10000:
-        raise ValueError('Exact full-file ranking currently supports at most 10000 candidate files')
-    response = client.search(index=index, size=len(documents), track_total_hits=True,
-                             query={'script_score': {'query': {'match_all': {}}, 'script': {
-                                 'source': "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
-                                 'params': {'query_vector': query_vector.tolist()}}}},
-                             collapse={'field': 'file_path'}, source_includes=['file_path', 'chunk_id', 'record'],
-                             sort=[{'_score': 'desc'}, {'file_path': 'asc'}, {'chunk_id': 'asc'}])
-    if response.get('timed_out') or response['_shards']['failed'] or response['hits']['total']['value'] != len(chunks):
-        raise ValueError('Elasticsearch did not score the complete chunk inventory')
-    ranking = [{'rank': i, 'file_path': hit['_source']['file_path'], 'score': hit['_score'],
-                'cosine_similarity': hit['_score'] - 1, 'best_chunk_id': hit['_source']['chunk_id'],
-                'best_chunk_start_line': hit['_source']['record']['start_line'],
-                'best_chunk_end_line': hit['_source']['record']['end_line']}
-               for i, hit in enumerate(response['hits']['hits'], 1)]
+    chunk_scores = read_chunk_scores(client, index, chunks, query_vector)
+    rankings = aggregate_chunk_scores(chunk_scores, temperature)
+    if file_aggregation not in rankings:
+        raise ValueError('Unknown file aggregation: ' + str(file_aggregation))
+    chunk_lookup = {chunk['chunk_id']: chunk for chunk in chunks}
+    # Retain the existing +1 public score offset, including for Max. The
+    # nested aggregation rankings always expose S(f) itself with no offset.
+    ranking = [{**item, 'score': item['score'] + 1.0, 'aggregated_similarity': item['score'],
+                'cosine_similarity': item['best_chunk_similarity'],
+                'best_chunk_start_line': chunk_lookup[item['best_chunk_id']]['start_line'],
+                'best_chunk_end_line': chunk_lookup[item['best_chunk_id']]['end_line']}
+               for item in rankings[file_aggregation]]
     paths = {doc['file_path'] for doc in documents}
     if len(ranking) != len(paths) or {r['file_path'] for r in ranking} != paths:
         raise ValueError('ES file collapse lost candidate files')
-    # Independent local cosine calculations verify all ES file scores, not just
-    # relevant files. This verification has no effect on the returned ranking.
+    # Verify EVERY ES chunk score locally. The three rankings above use only
+    # the common ES scores; these NumPy calculations never change rankings.
     scores = (vectors @ query_vector) / (np.linalg.norm(vectors, axis=1) * np.linalg.norm(query_vector))
-    expected = {path: -float('inf') for path in paths}
-    for chunk, score in zip(chunks, scores):
-        expected[chunk['file_path']] = max(expected[chunk['file_path']], float(score))
-    error = max(abs(item['cosine_similarity'] - expected[item['file_path']]) for item in ranking)
+    error = max(abs(row['cosine_similarity'] - float(score)) for row, score in zip(chunk_scores, scores))
     if error > 2e-5:
         raise ValueError(f'ES cosine scores differ from independent calculations: {error}')
-    local_order = sorted(paths, key=lambda path: (-expected[path], path))
+    local_rows = [{**row, 'cosine_similarity': float(score)} for row, score in zip(chunk_scores, scores)]
+    local_rankings = aggregate_chunk_scores(local_rows, temperature)
+    checks = {}
+    for method in AGGREGATIONS:
+        expected = {item['file_path']: item['score'] for item in local_rankings[method]}
+        file_error = max(abs(item['score'] - expected[item['file_path']]) for item in rankings[method])
+        if file_error > 2e-5:
+            raise ValueError('File aggregation differs from local cosine calculations: ' + method)
+        checks[method] = {'max_file_score_error': file_error,
+                         'top_10_matches_local_order': [r['file_path'] for r in rankings[method][:10]] ==
+                                                      [r['file_path'] for r in local_rankings[method][:10]]}
     return {'index': index, 'index_reused': reused, 'index_fingerprint': fingerprint,
             'indexed_chunks': len(chunks), 'ranking': ranking,
-            'verification': {'max_cosine_error': error, 'all_file_scores_verified': True,
-                             'top_10_matches_local_order': [r['file_path'] for r in ranking[:10]] == local_order[:10]},
-            'score_definition': '1 + cosine_similarity; file score is maximum over all its chunks',
-            'retrieval': 'Elasticsearch exact script_score with file_path collapse; complete file ranking'}
+            'file_aggregation': file_aggregation, 'aggregation_temperature': temperature,
+            'aggregations': {method: {'ranking': rankings[method]} for method in AGGREGATIONS},
+            'chunk_scores': chunk_scores, 'chunk_scores_sha256': digest(chunk_scores),
+            'verification': {'max_cosine_error': error, 'all_chunk_scores_verified': True,
+                             'all_file_scores_verified': True, 'aggregations': checks,
+                             'same_chunk_scores_for_all_aggregations': True,
+                             'top_10_matches_local_order': checks[file_aggregation]['top_10_matches_local_order']},
+            'score_definition': 'score = 1 + S(f); aggregations.*.ranking exposes unshifted S(f)',
+            'retrieval': 'Elasticsearch exact script_score for every chunk; complete file rankings'}
+
+
+def read_chunk_scores(client, index, chunks, query_vector):
+    """Scroll the full scored inventory, rejecting missing/extra/duplicate IDs."""
+    from elasticsearch import helpers
+
+    expected = {chunk['chunk_id']: chunk['file_path'] for chunk in chunks}
+    if len(expected) != len(chunks):
+        raise ValueError('Duplicate chunk IDs before scoring')
+    scored = {}
+    query = {'query': {'script_score': {'query': {'match_all': {}}, 'script': {
+        'source': "cosineSimilarity(params.query_vector, 'embedding') + 1.0",
+        'params': {'query_vector': query_vector.tolist()}}}},
+        '_source': ['file_path', 'chunk_id'], 'track_scores': True}
+    for hit in helpers.scan(client, index=index, query=query, size=1000, scroll='5m',
+                            request_timeout=120):
+        row = hit['_source']
+        chunk_id = row['chunk_id']
+        if chunk_id not in expected or chunk_id in scored or row['file_path'] != expected[chunk_id]:
+            raise ValueError('ES score inventory differs from the supplied chunks')
+        scored[chunk_id] = {'file_path': row['file_path'], 'chunk_id': chunk_id,
+                            'cosine_similarity': float(hit['_score']) - 1.0}
+    if set(scored) != set(expected):
+        raise ValueError('Elasticsearch did not score the complete chunk inventory')
+    return [scored[chunk['chunk_id']] for chunk in chunks]
 
 
 def run_semantic_batch(project, config):
@@ -209,11 +248,13 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
                                                'model': embedder.identity, 'server_version': info['version']['number'],
                                                'tree-sitter': version('tree-sitter'), 'tree-sitter-python': version('tree-sitter-python'),
                                                'implementation_sha256': {name: sha256_file(Path(__file__).with_name(name))
-                                                                         for name in ('chunking.py', 'chunk_cache.py', 'embeddings.py', 'vector.py')}})
+                                                                         for name in ('chunking.py', 'chunk_cache.py', 'embeddings.py', 'aggregation.py', 'vector.py')}})
     records = {route: [] for route in routes}
     context = {'run_id': run_id, 'dataset': base['dataset'], 'split': base['split'],
                'selection_sha256': selection['selection_sha256'], 'scope': 'Small semantic subset; not full benchmark performance',
                'fusion': {route: list(inputs) for route, inputs in fusions.items()},
+               'file_aggregation': config.get('file_aggregation', 'max'),
+               'aggregation_temperature': config.get('aggregation_temperature', 0.1),
                'rrf_constant': config['rrf_constant']}
     checkpoint(folder, context, records, config['evaluation_k'], len(selected), embedder)
     for position, sample in enumerate(selected, 1):
@@ -250,7 +291,14 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
                     vectors = embedder.encode([chunk['embedding_text'] for chunk in chunks])
                     identity = {'repository': row['repo_name'], 'commit': row['before_fix_sha'], 'route': route,
                                 'model_fingerprint': embedder.fingerprint, 'chunker_sha256': sha256_file(Path(__file__).with_name('chunking.py'))}
-                    output = retrieve(client, documents, chunks, vectors, query_vector, identity)
+                    output = retrieve(client, documents, chunks, vectors, query_vector, identity,
+                                      config.get('file_aggregation', 'max'), config.get('aggregation_temperature', 0.1))
+                    scores_path = case / (route + '_chunk_scores.json')
+                    write_json(scores_path, {'scores': output.pop('chunk_scores'),
+                                            'sha256': output['chunk_scores_sha256'],
+                                            'score_definition': 'raw cosine similarity (no +1 offset)',
+                                            'index': output['index']})
+                    output['chunk_scores_file'] = scores_path.relative_to(folder).as_posix()
                     output.update({'route': route, 'repository': row['repo_name'], 'issue_id': row['issue_id'],
                                    'before_fix_sha': row['before_fix_sha'], 'candidate_fingerprint': digest(inventory),
                                    'indexed_files': len(documents), 'ground_truth': gold, 'missing_gold': missing,
@@ -268,10 +316,15 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
                                        'maximum_body_tokens': max(c['body_tokens'] for c in chunks),
                                        'boundary_adjusted_chunks': sum(c['fixed_window']['boundary_adjusted'] for c in chunks)})
                     output['metrics'] = ranking_metrics([item['file_path'] for item in output['ranking']], gold, config['evaluation_k'])
+                    for aggregation in output['aggregations'].values():
+                        aggregation['metrics'] = ranking_metrics([item['file_path'] for item in aggregation['ranking']],
+                                                                 gold, config['evaluation_k'])
                     write_json(case / (route + '_result.json'), output)
                     outputs[route] = output
                     route_records[route] = {**record, 'status': 'ok', 'metrics': output['metrics'], 'missing_gold': missing,
                                             'indexed_files': len(documents), 'query_truncated': query_info['truncated'],
+                                            'aggregation_metrics': {method: values['metrics'] for method, values in output['aggregations'].items()},
+                                            'chunk_scores_sha256': output['chunk_scores_sha256'],
                                             'elapsed_seconds': round(time.monotonic() - route_started, 3),
                                             'result_file': (case / (route + '_result.json')).relative_to(folder).as_posix()}
                     print(f"  {route}: AP@10={output['metrics']['average_precision_at_k']:.4f}, RR@10={output['metrics']['reciprocal_rank_at_k']:.4f}", flush=True)
@@ -320,6 +373,42 @@ def checkpoint(folder, context, records, k, selected_count, embedder):
         write_checkpoints(route_folder, records[route], {**context, **values})
         rows.append({'route': route, 'selected_samples': selected_count, 'successful_samples': values['successful_samples'],
                      'failed_samples': values['failed_samples'], **(values['metrics'] or {})})
+    if 'file_aggregation' in context:
+        aggregation_rows = []
+        sample_rows = []
+        summary['aggregation_routes'] = {}
+        for route in RETRIEVAL_ROUTES:
+            for method in AGGREGATIONS:
+                paired = [{**record, 'metrics': record['aggregation_metrics'][method]} if record['status'] == 'ok'
+                          else record for record in records[route]]
+                values = aggregate_results(paired, k, selected_count)
+                key = route + '/' + method
+                summary['aggregation_routes'][key] = values
+                for record in paired:
+                    metrics = record.get('metrics') or {}
+                    sample_rows.append({'chunking': route, 'aggregation': method,
+                                        'position': record['position'], 'repository': record['repository'],
+                                        'issue_id': record['issue_id'], 'status': record['status'],
+                                        'AP@10': metrics.get('average_precision_at_k'),
+                                        'RR@10': metrics.get('reciprocal_rank_at_k'),
+                                        'Top-1': metrics.get('top_1'), 'Top-5': metrics.get('top_5'),
+                                        'Top-10': metrics.get('top_10'), 'Recall@10': metrics.get('recall_at_k'),
+                                        'chunk_scores_sha256': record.get('chunk_scores_sha256'),
+                                        'error': record.get('error')})
+                aggregation_rows.append({'chunking': route, 'aggregation': method,
+                                         'temperature': context['aggregation_temperature'] if method == 'normalized_logsumexp' else '',
+                                         'selected_samples': selected_count, 'successful_samples': values['successful_samples'],
+                                         'failed_samples': values['failed_samples'], **(values['metrics'] or {})})
+        write_json(folder / 'aggregation_summary.json', {'file_score_definition': 'unshifted cosine aggregation S(f)',
+                   'same_chunk_scores_for_all_aggregations': True, 'selection_sha256': context['selection_sha256'],
+                   'temperature': context['aggregation_temperature'], 'routes': summary['aggregation_routes']})
+        write_json(folder / 'aggregation_samples.json', sample_rows)
+        for name, data in [('aggregation_summary.csv', aggregation_rows), ('aggregation_samples.csv', sample_rows)]:
+            with (folder / name).open('w', encoding='utf-8-sig', newline='') as handle:
+                fields = list(dict.fromkeys(field for row in data for field in row))
+                writer = csv.DictWriter(handle, fieldnames=fields)
+                writer.writeheader()
+                writer.writerows(data)
     write_json(folder / 'summary.json', summary)
     with (folder / 'summary.csv').open('w', encoding='utf-8-sig', newline='') as handle:
         fields = list(dict.fromkeys(field for row in rows for field in row))
