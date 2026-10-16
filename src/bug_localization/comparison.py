@@ -16,12 +16,12 @@ def read_json(path):
     return json.loads(path.read_text(encoding='utf-8'))
 
 
-def paired_records(lexical_records, semantic_records):
+def paired_records(lexical_records, semantic_records, routes=None):
     expected = [(r['position'], r['dataset_row'], r['repository'], r['issue_id'], r['before_fix_sha'])
                 for r in lexical_records]
     if not expected:
         raise ValueError('Comparison cannot contain zero samples')
-    for route in RETRIEVAL_ROUTES:
+    for route in (routes if routes is not None else [r for r in semantic_records if r in RETRIEVAL_ROUTES]):
         actual = [(r['position'], r['dataset_row'], r['repository'], r['issue_id'], r['before_fix_sha'])
                   for r in semantic_records[route]]
         if actual != expected:
@@ -31,7 +31,10 @@ def paired_records(lexical_records, semantic_records):
 def compare_runs(project, folder, lexical_folder, semantic_folder):
     lexical = read_json(lexical_folder / 'summary.json')
     semantic = read_json(semantic_folder / 'summary.json')
-    if set(semantic['routes']) != set(RETRIEVAL_ROUTES) or semantic.get('fusion'):
+    semantic_routes = tuple(semantic.get('chunking_routes', semantic['routes']))
+    comparison_routes = ('bm25',) + semantic_routes
+    if (not semantic_routes or not set(semantic_routes).issubset(RETRIEVAL_ROUTES)
+            or set(semantic['routes']) != set(semantic_routes) or semantic.get('fusion')):
         raise ValueError('This comparison must not contain RRF results')
     if lexical['selection_sha256'] != semantic['selection_sha256']:
         raise ValueError('BM25/semantic selection fingerprints differ')
@@ -39,8 +42,8 @@ def compare_runs(project, folder, lexical_folder, semantic_folder):
     if selection['samples'] != read_json(semantic_folder / 'selection.json')['samples']:
         raise ValueError('BM25/semantic selection manifests differ')
     all_records = {'bm25': read_json(lexical_folder / 'samples.json')}
-    all_records.update({route: read_json(semantic_folder / route / 'samples.json') for route in RETRIEVAL_ROUTES})
-    paired_records(all_records['bm25'], all_records)
+    all_records.update({route: read_json(semantic_folder / route / 'samples.json') for route in semantic_routes})
+    paired_records(all_records['bm25'], all_records, semantic_routes)
     summaries = {'bm25': lexical, **semantic['routes']}
     n = len(selection['samples'])
     cutoffs = {values['cutoff'] for values in summaries.values()}
@@ -51,25 +54,26 @@ def compare_runs(project, folder, lexical_folder, semantic_folder):
     for position in range(n):
         records = {route: values[position] for route, values in all_records.items()}
         successful = {route: record for route, record in records.items() if record['status'] == 'ok'}
-        if len(successful) == len(COMPARISON_ROUTES):
+        if len(successful) == len(comparison_routes):
             bm = read_json(lexical_folder / records['bm25']['result_file'])
-            semantic_case = (semantic_folder / records['dynamic']['result_file']).parent
+            reference_route = semantic_routes[0]
+            semantic_case = (semantic_folder / records[reference_route]['result_file']).parent
             candidate = read_json(semantic_case / 'candidates.json')['files']
             query = read_json(semantic_case / 'query.json')
             if candidate != bm['candidate_files'] or query['body'] != bm['query_text']:
                 raise ValueError('Compared routes have different candidates or raw reports')
-            for route in RETRIEVAL_ROUTES:
+            for route in semantic_routes:
                 result = read_json(semantic_folder / records[route]['result_file'])
                 if (result['before_fix_sha'] != bm['before_fix_sha'] or set(result['ground_truth']) != set(bm['ground_truth']) or
                         result['missing_gold'] != bm['ground_truth_missing_from_candidates'] or
                         result['indexed_files'] != len(candidate)):
                     raise ValueError('Compared routes have different snapshots, labels or candidate coverage')
-                if result['candidate_fingerprint'] != read_json(semantic_folder / records['dynamic']['result_file'])['candidate_fingerprint']:
+                if result['candidate_fingerprint'] != read_json(semantic_folder / records[reference_route]['result_file'])['candidate_fingerprint']:
                     raise ValueError('Semantic candidate fingerprints differ')
             truncated_queries += int(query['truncated'])
             verified_cases += 1
         else:
-            unverified_cases.append({'position': position + 1, 'failed_routes': sorted(set(COMPARISON_ROUTES) - set(successful))})
+            unverified_cases.append({'position': position + 1, 'failed_routes': sorted(set(comparison_routes) - set(successful))})
         for route, record in records.items():
             metrics = record.get('metrics') or {}
             per_sample.append({'position': record['position'], 'route': route, 'repository': record['repository'],

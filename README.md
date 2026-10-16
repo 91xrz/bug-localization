@@ -1,6 +1,6 @@
 # Bug Localization
 
-基于 Elasticsearch 的文件级缺陷定位项目，已跑通 **BM25、动态块向量、方法块向量、固定块 400-token 向量**四条路线。当前默认对比 SWE-bench 格式化版中 `psf/requests` 的全部 44 条报告，统一使用 @10 指标，关闭 RRF。
+基于 Elasticsearch 的文件级缺陷定位项目，包含 **BM25、动态块、方法块、固定块 400-token、BLagent 风格 AST 块**五条路线。当前默认对比 SWE-bench 格式化版中 `psf/requests` 的全部 44 条报告，统一使用 @10 指标，关闭 RRF。
 
 ## 1. Python 环境
 
@@ -12,7 +12,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -B scripts\environment\verify_environment.py --semantic
 ```
 
-`requirements.txt` 包含当前四路检索所需的直接依赖，固定 CUDA 12.8 版 PyTorch，已配置官方 CUDA wheel 索引。无需单独安装 CUDA Toolkit。完整已安装版本锁定在 `configs/environment/requirements.lock.txt`，可用于复现相同环境。
+`requirements.txt` 包含当前全部检索路线所需的直接依赖，固定 CUDA 12.8 版 PyTorch，已配置官方 CUDA wheel 索引及多语言 AST 语法包。无需单独安装 CUDA Toolkit。完整已安装版本锁定在 `configs/environment/requirements.lock.txt`，可用于复现相同环境。
 
 只运行数据检查或 BM25 时，可安装较小的依赖集合：
 
@@ -47,7 +47,7 @@ Elasticsearch 使用 Windows 9.5.5，本机已有安装。新机器请按 [ES �
 
 保持该终端打开，在另一终端运行检索。ES 只监听 `127.0.0.1:9200`；BM25 是 ES 内置能力。
 
-## 3. 运行四路对比
+## 3. 运行 BM25 与四种语义切块对比
 
 ```powershell
 .\.venv\Scripts\python.exe -B scripts\retrieval\run_retrieval_comparison.py
@@ -59,17 +59,17 @@ Elasticsearch 使用 Windows 9.5.5，本机已有安装。新机器请按 [ES �
 
 | 文件 | 内容 |
 | --- | --- |
-| `summary.csv`、`summary.json` | 四路指标、成功/失败数量、标签覆盖情况及原始运行路径 |
-| `samples.csv`、`samples.json` | 每条报告的四路 AP@10、RR@10、Top-1/5/10 和 Recall@10 |
+| `summary.csv`、`summary.json` | 各路线指标、成功/失败数量、标签覆盖情况及原始运行路径 |
+| `samples.csv`、`samples.json` | 每条报告各路线的 AP@10、RR@10、Top-1/5/10 和 Recall@10 |
 | `selection.json` | 数据行号、仓库、issue、提交、报告及标签指纹 |
 | `verification.json` | 样本、查询和候选一致性核对 |
 | `effective_config.json`、`status.json` | 配置与运行阶段 |
 
 原始排名和分块保存在对应的 `results/bm25/batches/`、`results/vector/batches/`；具体路径见总汇总的 `runs` 字段。
 
-当前 44 条测试的 **MAP@10：BM25 0.4596、动态块 0.5650、方法块 0.5239、固定块 0.5466**。详细指标、数据覆盖和限制见 [评测说明](docs/evaluation.md)。这是单项目对比，不是完整 SWE-bench 成绩。
+当前 44 条测试采用 Max 聚合的 **MAP@10：BM25 0.4596、动态块 0.5650、方法块 0.5239、固定块 0.5466、BLagent AST 0.6297**。详细指标、数据覆盖和限制见 [评测说明](docs/evaluation.md)。这是单项目对比，不是完整 SWE-bench 成绩。
 
-三种语义分块还会分别比较 **Max、Top-3 Mean、Normalized LogSumExp（默认 τ=0.1）**。每条分块路线只获取一次全部 Chunk 相似度，再生成三种文件排名；主排名默认仍为 Max。定义、输出与复现命令见 [文件聚合说明](docs/file-aggregation.md)。
+四种语义分块还会分别比较 **Max、Top-3 Mean、Normalized LogSumExp（默认 τ=0.1）**，共 12 组。每条分块路线只获取一次全部 Chunk 相似度，再生成三种文件排名；主排名默认仍为 Max。定义、输出与复现命令见 [文件聚合说明](docs/file-aggregation.md)。新增 AST 路线支持九种语言、十种语法，详见 [多语言 AST 切块](docs/blagent-ast.md)。
 
 ## 4. 单独运行与配置
 
@@ -77,12 +77,12 @@ Elasticsearch 使用 Windows 9.5.5，本机已有安装。新机器请按 [ES �
 | --- | --- | --- |
 | `scripts/retrieval/run_bm25.py` | 单条报告 BM25 验证 | `configs/retrieval/bm25.json` |
 | `scripts/retrieval/run_bm25_batch.py` | 前 5 条报告 BM25 | `configs/retrieval/bm25_batch.json` |
-| `scripts/retrieval/run_vector_batch.py` | 前 5 条报告的三种分块对比 | `configs/retrieval/vector.json` |
-| `scripts/retrieval/run_retrieval_comparison.py` | 全部 44 条报告四路对比 | `configs/retrieval/comparison.json` |
+| `scripts/retrieval/run_vector_batch.py` | 前 5 条报告的四种分块及三种聚合对比 | `configs/retrieval/vector.json` |
+| `scripts/retrieval/run_retrieval_comparison.py` | 全部 44 条报告的 BM25 与四种语义切块对比 | `configs/retrieval/comparison.json` |
 
 批量入口支持 `--limit`（1–50）和可重复的 `--repository`。语义入口支持 `--selection` 绑定已有清单，此时不与数量/仓库过滤混用。模型编码、分块和缓存细节见 [语义检索说明](docs/semantic-retrieval.md)。
 
-RRF 实现保留供后续实验，默认关闭；只有语义入口显式传 `--fusion` 才运行，四路对比入口不会启用它。
+RRF 实现保留供后续实验，默认关闭；只有语义入口显式传 `--fusion` 才运行，BM25 与语义对比入口不会启用它。
 
 ## 5. 文件组织与检查
 
@@ -91,7 +91,7 @@ RRF 实现保留供后续实验，默认关闭；只有语义入口显式传 `--
 | `configs/` | 检索、ES 和依赖配置 | 是 |
 | `src/bug_localization/` | 快照、分块、编码、检索和指标实现 | 是 |
 | `scripts/`、`tests/` | 运行入口与单元测试 | 是 |
-| `docs/`、`references/blaze/` | 说明文档及原始 BLAZE 代码参考 | 是 |
+| `docs/`、`references/` | 说明文档及原始 BLAZE、BLagent 代码参考 | 是 |
 | `datasets/`、`models/`、`repos/` | 数据、模型、固定提交的源码快照 | 否 |
 | `cache/`、`results/` | 可复用缓存和实验输出 | 否 |
 | `.venv/`、`.runtime/`、`.idea/` | Python 环境、ES 程序与数据、IDE 设置 | 否 |
@@ -103,4 +103,4 @@ RRF 实现保留供后续实验，默认关闭；只有语义入口显式传 `--
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-当前 45 项单元测试通过。测试不访问运行中的 ES 或数据集；未安装 tree-sitter 时，语义分块测试会跳过。实际检索还需要 ES、相应数据和模型就绪。
+当前 52 项单元测试通过。测试不访问运行中的 ES 或数据集；缺少语法包时，对应分块测试会跳过。实际检索还需要 ES、相应数据和模型就绪。

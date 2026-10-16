@@ -9,7 +9,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from bug_localization.chunk_cache import ChunkCache
 from bug_localization.comparison import paired_records
-from bug_localization.vector import active_fusions, checkpoint
+from bug_localization.vector import RETRIEVAL_ROUTES, active_fusions, checkpoint
 
 
 class ComparisonTests(unittest.TestCase):
@@ -27,11 +27,13 @@ class ComparisonTests(unittest.TestCase):
 
     def test_comparison_rejects_mismatched_sample_order_or_snapshot(self):
         row = {'position': 1, 'dataset_row': 3, 'repository': 'owner/repo', 'issue_id': 4, 'before_fix_sha': 'a' * 40}
-        semantic = {route: [dict(row)] for route in ('dynamic', 'method', 'fixed')}
+        semantic = {route: [dict(row)] for route in RETRIEVAL_ROUTES}
         paired_records([row], semantic)
-        semantic['fixed'][0]['before_fix_sha'] = 'b' * 40
-        with self.assertRaises(ValueError):
-            paired_records([row], semantic)
+        for route in RETRIEVAL_ROUTES:
+            semantic[route][0]['before_fix_sha'] = 'b' * 40
+            with self.subTest(route=route), self.assertRaises(ValueError):
+                paired_records([row], semantic)
+            semantic[route][0]['before_fix_sha'] = row['before_fix_sha']
 
 
 class ChunkCacheTests(unittest.TestCase):

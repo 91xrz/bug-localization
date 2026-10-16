@@ -20,9 +20,11 @@ def main():
     args = parser.parse_args()
     packages = ('datasets', 'pyarrow', 'elasticsearch')
     if args.semantic:
-        packages += ('numpy', 'torch', 'transformers', 'tree-sitter', 'tree-sitter-python')
+        packages += ('numpy', 'torch', 'transformers', 'tree-sitter', 'tree-sitter-python',
+                     'tree-sitter-java', 'tree-sitter-javascript', 'tree-sitter-typescript',
+                     'tree-sitter-c', 'tree-sitter-cpp', 'tree-sitter-c-sharp', 'tree-sitter-go', 'tree-sitter-rust')
     for package in packages:
-        module = {'tree-sitter': 'tree_sitter', 'tree-sitter-python': 'tree_sitter_python'}.get(package, package)
+        module = package.replace('-', '_') if package.startswith('tree-sitter') else package
         importlib.import_module(module)
     report = {
         'python': sys.version,

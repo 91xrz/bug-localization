@@ -12,13 +12,22 @@ import traceback
 from .batch import aggregate_results, select_samples, write_checkpoints, write_json
 from .aggregation import AGGREGATIONS, aggregate_chunk_scores, validate_temperature
 from .bm25 import collect_files, prepare_report, ranking_metrics, validate_config
-from .chunking import PythonChunker
-from .chunk_cache import ChunkCache
+from .ast_chunking import RoutingChunkCache
+from .languages import grammar_versions, language_for_path, parser_for_language, validate_language_config
 from .embeddings import LocalEmbedder, digest
 from .snapshot import get_snapshot, sha256_file
 
-RETRIEVAL_ROUTES = ('dynamic', 'method', 'fixed')
-FUSIONS = {'rrf': ('dynamic', 'method'), 'rrf_three': RETRIEVAL_ROUTES}
+RETRIEVAL_ROUTES = ('dynamic', 'method', 'fixed', 'blagent_ast')
+FUSIONS = {'rrf': ('dynamic', 'method'), 'rrf_three': ('dynamic', 'method', 'fixed')}
+
+
+def active_routes(config):
+    routes = config.get('chunking_routes', list(RETRIEVAL_ROUTES))
+    if not isinstance(routes, (list, tuple)) or not routes or any(route not in RETRIEVAL_ROUTES for route in routes):
+        raise ValueError('chunking_routes must contain registered semantic routes')
+    if len(routes) != len(set(routes)):
+        raise ValueError('chunking_routes must not contain duplicate routes')
+    return tuple(routes)
 
 
 def active_fusions(config):
@@ -31,11 +40,15 @@ def active_fusions(config):
 def validate_vector_config(config, base):
     validate_config(base)
     active_fusions(config)
+    routes = active_routes(config)
+    if any(not set(inputs).issubset(routes) for inputs in active_fusions(config).values()):
+        raise ValueError('RRF requires all of its input chunking routes')
     if config.get('file_aggregation', 'max') not in AGGREGATIONS:
         raise ValueError('Unknown file_aggregation')
     validate_temperature(config.get('aggregation_temperature', 0.1))
-    if base['extensions'] != ['.py']:
-        raise ValueError('The initial semantic pipeline supports Python candidates only')
+    validate_language_config(base['extensions'], config.get('language_overrides', {}))
+    if type(config.get('ast_max_chars', 1500)) is not int or not 1 <= config.get('ast_max_chars', 1500) <= 100000:
+        raise ValueError('ast_max_chars must be an integer in [1, 100000]')
     for field, minimum, maximum in [('max_tokens', 128, 32768), ('prefix_max_tokens', 16, 256),
                                     ('embedding_batch_size', 1, 128), ('dynamic_general_cost', 6, 10000),
                                     ('dynamic_max_lines', 1, 1000), ('evaluation_k', 10, 10000),
@@ -223,6 +236,9 @@ def run_semantic_batch(project, config):
     base_path = Path(config['base_config'])
     base = json.loads((base_path if base_path.is_absolute() else project / base_path).read_text(encoding='utf-8'))
     validate_vector_config(config, base)
+    # Check grammar availability/ABI before creating a run or fetching snapshots.
+    for extension in base['extensions']:
+        parser_for_language(language_for_path('source' + extension, config.get('language_overrides', {})))
     selected, selection = select_reports(project, config, base)
     with Elasticsearch(base['endpoint'], request_timeout=120) as client:
         info = dict(client.info())
@@ -239,20 +255,23 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
     run_id = base['dataset'] + '_' + base['split'] + '_' + datetime.now(timezone(timedelta(hours=8))).strftime('%Y%m%d_%H%M%S_%f')
     folder = project / 'results/vector/batches' / run_id
     folder.mkdir(parents=True)
-    chunker = PythonChunker(embedder.tokenizer, config)
-    chunk_cache = ChunkCache(project, chunker, embedder.fingerprint)
+    chunk_cache = RoutingChunkCache(project, embedder.tokenizer, config, embedder.fingerprint)
+    semantic_routes = active_routes(config)
     fusions = active_fusions(config)
-    routes = RETRIEVAL_ROUTES + tuple(fusions)
+    routes = semantic_routes + tuple(fusions)
     write_json(folder / 'selection.json', selection)
     write_json(folder / 'effective_config.json', {'semantic': config, 'candidate_config': base,
                                                'model': embedder.identity, 'server_version': info['version']['number'],
                                                'tree-sitter': version('tree-sitter'), 'tree-sitter-python': version('tree-sitter-python'),
+                                               'grammar_versions': grammar_versions(),
                                                'implementation_sha256': {name: sha256_file(Path(__file__).with_name(name))
-                                                                         for name in ('chunking.py', 'chunk_cache.py', 'embeddings.py', 'aggregation.py', 'vector.py')}})
+                                                                         for name in ('chunking.py', 'chunk_cache.py', 'ast_chunking.py', 'languages.py',
+                                                                                      'embeddings.py', 'aggregation.py', 'vector.py')}})
     records = {route: [] for route in routes}
     context = {'run_id': run_id, 'dataset': base['dataset'], 'split': base['split'],
                'selection_sha256': selection['selection_sha256'], 'scope': 'Small semantic subset; not full benchmark performance',
                'fusion': {route: list(inputs) for route, inputs in fusions.items()},
+               'chunking_routes': list(semantic_routes),
                'file_aggregation': config.get('file_aggregation', 'max'),
                'aggregation_temperature': config.get('aggregation_temperature', 0.1),
                'rrf_constant': config['rrf_constant']}
@@ -275,7 +294,7 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
             query_vector, query_info = embedder.query(body)
             write_json(case / 'query.json', {'body': body, **query_info, 'model_fingerprint': embedder.fingerprint})
             missing = sorted(set(gold) - {d['file_path'] for d in documents})
-            for route in RETRIEVAL_ROUTES:
+            for route in semantic_routes:
                 route_started = time.monotonic()
                 try:
                     cache_hits_before, cache_misses_before = chunk_cache.hits, chunk_cache.misses
@@ -290,7 +309,7 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
                     before_hits, before_misses = embedder.hits, embedder.misses
                     vectors = embedder.encode([chunk['embedding_text'] for chunk in chunks])
                     identity = {'repository': row['repo_name'], 'commit': row['before_fix_sha'], 'route': route,
-                                'model_fingerprint': embedder.fingerprint, 'chunker_sha256': sha256_file(Path(__file__).with_name('chunking.py'))}
+                                'model_fingerprint': embedder.fingerprint, **chunk_cache.index_identity(documents, route)}
                     output = retrieve(client, documents, chunks, vectors, query_vector, identity,
                                       config.get('file_aggregation', 'max'), config.get('aggregation_temperature', 0.1))
                     scores_path = case / (route + '_chunk_scores.json')
@@ -311,6 +330,11 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
                                    'chunk_cache_hits': chunk_cache.hits - cache_hits_before,
                                    'chunk_cache_misses': chunk_cache.misses - cache_misses_before,
                                    'cache_hits': embedder.hits - before_hits, 'new_embeddings': embedder.misses - before_misses})
+                    if route == 'blagent_ast':
+                        output.update({'ast_max_chars': config.get('ast_max_chars', 1500), 'overlap_tokens': 0,
+                                       'languages': sorted({c['language'] for c in chunks}),
+                                       'ast_character_fallback_parents': sum('boundary' in p['kind'] or 'fallback' in p['kind'] or
+                                                                            'oversized_leaf' in p['kind'] for p in parents)})
                     if route == 'fixed':
                         output.update({'fixed_chunk_tokens': config['fixed_chunk_tokens'], 'overlap_tokens': 0,
                                        'maximum_body_tokens': max(c['body_tokens'] for c in chunks),
@@ -377,7 +401,7 @@ def checkpoint(folder, context, records, k, selected_count, embedder):
         aggregation_rows = []
         sample_rows = []
         summary['aggregation_routes'] = {}
-        for route in RETRIEVAL_ROUTES:
+        for route in (r for r in records if r in RETRIEVAL_ROUTES):
             for method in AGGREGATIONS:
                 paired = [{**record, 'metrics': record['aggregation_metrics'][method]} if record['status'] == 'ok'
                           else record for record in records[route]]

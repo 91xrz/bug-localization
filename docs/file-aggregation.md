@@ -1,6 +1,6 @@
 # Chunk 到文件的三种聚合
 
-对每条缺陷报告、每种分块路线，ES 只计算一次当前快照的全部 Chunk 相似度。Max、Top-3 Mean、Normalized LogSumExp 使用完全相同的这份分数；聚合阶段不重新编码、不改变候选或 Chunk，不使用真实标签计算分数，也不启用 RRF。
+对每条缺陷报告、每种分块路线，ES 只计算一次当前快照的全部 Chunk 相似度。Max、Top-3 Mean、Normalized LogSumExp 使用完全相同的这份分数；聚合阶段不重新编码、不改变候选或 Chunk，不使用真实标签计算分数，也不启用 RRF。现已加入第四种 BLagent 风格 AST 分块，默认输出 12 组指标，详见 [多语言 AST 切块](blagent-ast.md)；本文末尾的九组表格保留第一轮三种分块实验的历史结果。
 
 ## 定义
 
@@ -30,7 +30,7 @@
 }
 ```
 
-主排名默认 Max，因此原有四路对比维持相同口径；无论主排名选择哪种方法，语义入口都会额外输出全部九组指标。用以下命令绑定当前 44 条固定清单：
+主排名默认 Max；无论主排名选择哪种方法，语义入口都会额外输出所有启用分块路线的三种聚合指标。用以下命令绑定当前 44 条固定清单：
 
 ```powershell
 .\.venv\Scripts\python.exe -B scripts\retrieval\run_vector_batch.py --selection results\comparison\20261015_214826_508867\selection.json --no-fusion --temperature 0.1
@@ -48,8 +48,8 @@
 
 结果保存在 `results/vector/batches/<run_id>/`，不覆盖既有实验：
 
-- `aggregation_summary.csv/json`：九组 MAP@10、MRR@10、Top-1/5/10、MeanRecall@10 及成功/失败数量。
-- `aggregation_samples.csv/json`：每条报告、分块、聚合的指标；完整 44 条共 396 行。
+- `aggregation_summary.csv/json`：各组 MAP@10、MRR@10、Top-1/5/10、MeanRecall@10 及成功/失败数量；默认四种分块共 12 组。
+- `aggregation_samples.csv/json`：每条报告、分块、聚合的指标；默认 44 条 × 四种分块 × 三种聚合共 528 行。
 - `cases/*/<route>_chunk_scores.json`：全部块的 `chunk_id`、路径、原始余弦相似度及 SHA-256。
 - `cases/*/<route>_result.json`：三种完整文件排名、各自指标、同一份分数的指纹以及独立核对结果。
 
@@ -57,7 +57,7 @@
 
 评测沿用原有全部选定报告为分母、失败计零及缺失标签不删除的规则。样本、候选、报告、模型、分块参数和 @10 指标保持一致，本次只改变文件级聚合。
 
-## 当前 44 条报告的结果
+## 第一轮三种分块的 44 条报告结果
 
 运行目录：`results/vector/batches/swe_bench_formatted_test_20261015_225004_395621/`。九组均成功 44 条，失败为 0，Normalized LogSumExp 的 τ 固定为 0.1。
 

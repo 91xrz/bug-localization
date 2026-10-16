@@ -1,4 +1,4 @@
-"""Compare BM25 and dynamic/method/fixed semantic retrieval on pinned reports; no RRF."""
+"""Compare BM25 and four semantic chunking routes on pinned reports; no RRF."""
 
 import argparse
 import json
