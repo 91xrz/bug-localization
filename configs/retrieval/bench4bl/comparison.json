@@ -1,0 +1,9 @@
+{
+  "bm25_config": "configs/retrieval/bench4bl/bm25.json",
+  "vector_config": "configs/retrieval/bench4bl/vector.json",
+  "repositories": [
+    "Bench4BL/Commons_CSV"
+  ],
+  "limit": 5,
+  "evaluation_k": 10
+}

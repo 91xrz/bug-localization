@@ -5,7 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 
-from .snapshot import get_snapshot
+from .snapshot import get_snapshot, sha256_file
 
 
 def validate_config(config):
@@ -15,6 +15,8 @@ def validate_config(config):
     missing = required - config.keys()
     if missing:
         raise ValueError('Missing configuration fields: ' + ', '.join(sorted(missing)))
+    if config.get('source_provider') not in (None, 'bench4bl_release'):
+        raise ValueError('Unknown source_provider')
     for name in ('dataset', 'split'):
         if not isinstance(config[name], str) or not config[name] or config[name] in ('.', '..') or any(c in config[name] for c in '/\\:'):
             raise ValueError(name + ' must be a single local directory name')
@@ -151,7 +153,9 @@ def run(project, config, *, report=None, output_directory=None, verbose=True):
             raise ValueError('Unexpected Elasticsearch cluster; refusing to create an index')
         if not info['version']['number'].startswith('9.'):
             raise ValueError('The current client/configuration expects Elasticsearch 9.x')
-        source, manifest = get_snapshot(project, row['repo_name'], row['before_fix_sha'])
+        source, manifest = get_snapshot(project, row['repo_name'], row['before_fix_sha'],
+                                        **({'source_provider': config['source_provider'], 'source_dataset': config['dataset']}
+                                           if config.get('source_provider') else {}))
         documents, skipped = collect_files(source, manifest, config)
         definition = index_definition(config['bm25'])
         fingerprint = hashlib.sha256(json.dumps({'definition': definition,
@@ -210,6 +214,9 @@ def run(project, config, *, report=None, output_directory=None, verbose=True):
             'scope': 'Single-report end-to-end validation; not a full benchmark evaluation',
             'ground_truth_coverage_complete': not missing_gold,
         }
+        if 'bench4bl_source' in manifest:
+            output['source_provenance'] = manifest['bench4bl_source']
+            output['source_provider_implementation_sha256'] = sha256_file(Path(__file__).with_name('bench4bl.py'))
         folder = Path(output_directory) if output_directory is not None else project / 'results/bm25' / (row['repo_name'].replace('/', '__') + '-' + str(row['issue_id']))
         folder.mkdir(parents=True, exist_ok=True)
         (folder / 'result.json').write_text(json.dumps(output, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')

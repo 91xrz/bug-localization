@@ -16,6 +16,7 @@ RESULTS = PROJECT / 'results' / 'environment'
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check-data', action='store_true', help='Also validate the three prepared local datasets')
+    parser.add_argument('--check-bench4bl', action='store_true', help='Validate the converted Bench4BL corpus and release registry')
     parser.add_argument('--semantic', action='store_true', help='Also verify embedding dependencies and CUDA computation when available')
     args = parser.parse_args()
     packages = ('datasets', 'pyarrow', 'elasticsearch')
@@ -52,6 +53,26 @@ def main():
                 raise ValueError('CUDA matrix computation failed')
         report['semantic'] = semantic
     report['semantic_checked'] = args.semantic
+    if args.check_bench4bl:
+        from datasets import load_from_disk
+        location = PROJECT / 'datasets/bench4bl_formatted'
+        conversion = json.loads((location / 'conversion_report.json').read_text(encoding='utf-8'))
+        registry = json.loads((location / 'bench4bl_sources.json').read_text(encoding='utf-8'))
+        converted = load_from_disk(str(location))['test']
+        if len(converted) != conversion['reports'] or registry['protocol'] != conversion['protocol']:
+            raise ValueError('Bench4BL conversion count or source protocol differs')
+        for row in converted:
+            source = registry['sources'].get(row['repo_name'] + '@' + row['source_revision'])
+            if not source or row['before_fix_sha'] != row['source_revision'] or row['snapshot_protocol'] != conversion['protocol']:
+                raise ValueError('Bench4BL row/source registry mismatch')
+            gold = ast.literal_eval(row['updated_files'])
+            mappings = json.loads(row['label_mapping_json'])
+            if gold != list(dict.fromkeys(m['mapped'] for m in mappings)):
+                raise ValueError('Bench4BL gold paths differ from their mapping audit')
+        report['datasets']['bench4bl_formatted'] = {
+            'rows': len(converted), 'subjects': conversion['subjects'], 'release_sources': len(registry['sources']),
+            'protocol': conversion['protocol'], 'source_revision_role': 'release, not per-bug pre-fix',
+            'unresolved_gold_labels': sum(converted['unresolved_gold_count'])}
     data_checks = [('BeetleBox', {'train': 10191, 'test': 8955}),
                                   ('swe_bench_formatted', {'test': 2294}),
                                   ('ye', {'train': 22709})] if args.check_data else []
@@ -83,6 +104,7 @@ def main():
             if report['datasets'][name]['test']['null_body_count'] != 0:
                 raise ValueError('BeetleBox test still contains null bodies')
     report['data_checked'] = args.check_data
+    report['bench4bl_checked'] = args.check_bench4bl
     report['status'] = 'passed'
     RESULTS.mkdir(parents=True, exist_ok=True)
     (RESULTS / 'verification.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')

@@ -269,7 +269,7 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
                                                'tree-sitter': version('tree-sitter'), 'tree-sitter-python': version('tree-sitter-python'),
                                                'grammar_versions': grammar_versions(),
                                                'implementation_sha256': {name: sha256_file(Path(__file__).with_name(name))
-                                                                         for name in ('chunking.py', 'chunk_cache.py', 'ast_chunking.py', 'token_ast.py', 'dependency_context.py', 'languages.py',
+                                                                         for name in ('chunking.py', 'chunk_cache.py', 'ast_chunking.py', 'token_ast.py', 'dependency_context.py', 'languages.py', 'snapshot.py', 'bench4bl.py',
                                                                                       'embeddings.py', 'aggregation.py', 'vector.py')}})
     records = {route: [] for route in routes}
     context = {'run_id': run_id, 'dataset': base['dataset'], 'split': base['split'],
@@ -291,7 +291,9 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
         outputs, route_records = {}, {}
         try:
             _, gold, body = prepare_report(row, {**base, 'repository': row['repo_name'], 'issue_id': row['issue_id']})
-            source, manifest = get_snapshot(project, row['repo_name'], row['before_fix_sha'])
+            source, manifest = get_snapshot(project, row['repo_name'], row['before_fix_sha'],
+                                            **({'source_provider': base['source_provider'], 'source_dataset': base['dataset']}
+                                               if base.get('source_provider') else {}))
             documents, skipped = collect_files(source, manifest, base)
             inventory = [{'file_path': doc['file_path'], 'sha256': doc['sha256']} for doc in documents]
             write_json(case / 'candidates.json', {'files': inventory, 'skipped': skipped})
@@ -318,6 +320,8 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
                                 'model_fingerprint': embedder.fingerprint, **chunk_cache.index_identity(documents, route)}
                     output = retrieve(client, documents, chunks, vectors, query_vector, identity,
                                       config.get('file_aggregation', 'max'), config.get('aggregation_temperature', 0.1))
+                    if 'bench4bl_source' in manifest:
+                        output['source_provenance'] = manifest['bench4bl_source']
                     scores_path = case / (route + '_chunk_scores.json')
                     write_json(scores_path, {'scores': output.pop('chunk_scores'),
                                             'sha256': output['chunk_scores_sha256'],

@@ -18,7 +18,14 @@ def snapshot_inventory(root):
             for path in sorted(root.rglob('*')) if path.is_file()}
 
 
-def get_snapshot(project, repository, commit):
+def get_snapshot(project, repository, commit, *, source_provider=None, source_dataset=None):
+    if source_provider == 'bench4bl_release':
+        from .bench4bl import local_snapshot
+        return local_snapshot(project, source_dataset, repository, commit)
+    if source_provider is not None:
+        raise ValueError('Unknown source provider: ' + str(source_provider))
+    if repository.startswith('Bench4BL/'):
+        raise ValueError('Bench4BL requires an explicit bench4bl_release source provider; no GitHub fallback')
     if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repository):
         raise ValueError('Expected a GitHub owner/repository name')
     if not commit or not re.fullmatch(r'[0-9a-f]{40}', commit):

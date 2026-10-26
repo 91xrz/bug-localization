@@ -4,13 +4,16 @@
 
 ```text
 configs/
-  retrieval/       常规 BM25、语义检索和综合对比配置
-  experiments/     AST96、token AST、调用依赖增强的实验配置
+  retrieval/       原有 BM25、语义检索和综合对比配置
+    bench4bl/      Bench4BL的BM25、批次、AST96和综合对比配置
+  experiments/     AST调参与改进、模块2多视角查询的实验配置
   environment/     基础依赖与环境版本记录
   elasticsearch/   ES 发行信息与配置模板
 scripts/
+  datasets/        Bench4BL原始包下载、转换与审计
   retrieval/       检索、融合及功能验证入口
   analysis/        已有实验结果的分析与来源审计
+  llm/             启动用户已安装的本地 GGUF 推理服务
   environment/     环境检查
   elasticsearch/   ES 安装包处理与启停
 src/bug_localization/  可复用算法模块
@@ -23,11 +26,14 @@ references/           用户提供的原始参考代码
 
 2026-10-26整理时，三份 `ast_*.json` 实验配置从 `configs/retrieval/` 移至 `configs/experiments/`，两个 `analyze_*_experiment.py` 从 `scripts/retrieval/` 移至 `scripts/analysis/`。历史结果中的配置路径作为运行记录保留；重新运行时请使用新路径。常用检索入口、默认配置、算法模块及缓存位置均未改动。
 
+Bench4BL的四份检索配置现集中于 `configs/retrieval/bench4bl/`，文件名为 `bm25.json`、`bm25_batch.json`、`vector.json`、`comparison.json`。旧的 `bench4bl_*.json` 路径已迁移，模块2配置和文档引用已同步更新。
+
 ## 代码与入口
 
 | 文件 | 职责 |
 | --- | --- |
 | `src/bug_localization/snapshot.py` | 下载指定修复前提交的源码快照，验证并记录文件清单 |
+| `src/bug_localization/bench4bl.py` | Bench4BL作者版本分组、标签路径映射及本地发布源码提供器 |
 | `src/bug_localization/bm25.py` | 候选读取、查询处理、BM25 建索引、检索及单样本指标 |
 | `src/bug_localization/batch.py` | 批量样本选择、固定清单、失败记录和指标汇总 |
 | `src/bug_localization/chunking.py` | 动态、方法、固定三种分块，真实结构前缀与 token 限制 |
@@ -42,8 +48,10 @@ references/           用户提供的原始参考代码
 | `src/bug_localization/dependency_context.py` | 独立实验：Python 静态调用与字段上下文、来源记录及缓存 |
 | `src/bug_localization/hybrid.py` | 对齐已有结果，补齐 BM25 排名并进行文件级 RRF |
 | `src/bug_localization/voting.py` | 按路线投票融合及并列排名的期望指标 |
+| `src/bug_localization/report_views.py`、`multiview.py` | 模块2的报告证据抽取、缓存、加权 RRF 和检索调度 |
 | `src/bug_localization/__init__.py` | Python 包标识 |
 | `scripts/environment/verify_environment.py` | 环境检查；`--semantic` 检查编码依赖与 CUDA；`--check-data` 检查本地数据 |
+| `scripts/datasets/download_bench4bl.py`、`prepare_bench4bl.py` | 下载51个原始包，以及将46个现代项目转换为统一HF输入 |
 | `scripts/elasticsearch/setup_elasticsearch.py` | 校验并解压用户下载的 ES ZIP，生成本地配置 |
 | `scripts/elasticsearch/start_elasticsearch.ps1` | 启动本地 ES |
 | `scripts/elasticsearch/stop_elasticsearch.ps1` | 核实进程归属后停止本地 ES |
@@ -56,6 +64,10 @@ references/           用户提供的原始参考代码
 | `scripts/retrieval/vote_rankings.py` | 已有排名的按路线投票实验入口 |
 | `scripts/analysis/analyze_chunking_experiment.py` | 配对分块实验的指标、成本与基线一致性分析 |
 | `scripts/analysis/analyze_dependency_experiment.py` | 调用依赖实验的源码来源、预算和配对指标审计 |
+| `scripts/retrieval/run_multiview.py` | 先准备多视角查询，再运行现有 BM25/AST 检索 |
+| `scripts/analysis/analyze_multiview.py` | 查询证据、融合和历史 q0 对照审计 |
+| `scripts/analysis/analyze_query_complementarity.py` | 已有查询排名的补救/损失、真实文件覆盖与事后选择上限 |
+| `scripts/llm/serve_report_llm.py` | 启动已安装的 llama.cpp，支持 Windows 和 Ubuntu |
 
 ## 配置与依赖
 
@@ -70,14 +82,19 @@ references/           用户提供的原始参考代码
 | `configs/retrieval/bm25_batch.json` | 默认 BM25 批次、样本范围和 @10 评测 |
 | `configs/retrieval/vector.json` | 模型、四种分块、多语言映射、聚合、编码和向量检索配置 |
 | `configs/retrieval/comparison.json` | 当前 44 条 BM25 与四种语义切块对比的配置入口 |
+| `configs/retrieval/bench4bl/*.json` | Bench4BL的BM25、批次、Java AST96和综合对比入口，默认CSV 5条 |
+| `configs/experiments/bench4bl_multiview.json` | 模块2的Bench4BL配置，复用既有生成模型和查询流程 |
 | `configs/experiments/ast_prefix96_candidate.json` | 原 AST 的96 token前缀候选；不改变默认配置 |
 | `configs/experiments/ast_token_experiment.json` | 原动态块、原 AST 与两种 token AST 对照 |
 | `configs/experiments/ast_dependency_experiment.json` | 原 AST96 与最多2个函数的依赖增强对照 |
+| `configs/experiments/report_multiview.json` | 模块2：生成模型身份、三视角与固定权重 |
+| `configs/experiments/report_multiview_crossproject.json` | 同一模块的新44条跨项目样本，固定原参数 |
 | `.gitignore` | 排除数据、模型、源码快照、缓存、结果、环境和 IDE 设置 |
 
 ## 文档、参考和测试
 
-- [datasets.md](datasets.md)：三份本地数据的来源、字段限制及 BeetleBox 清洗口径。
+- [datasets.md](datasets.md)：本地数据来源、Bench4BL适配范围、字段限制及 BeetleBox 清洗口径。
+- [bench4bl.md](bench4bl.md)：Bench4BL适配范围、发布版本口径、源码与标签审计、启动命令。
 - [elasticsearch.md](elasticsearch.md)：手动下载安装包、配置和启停。
 - [semantic-retrieval.md](semantic-retrieval.md)：分块、结构前缀、编码、检索、缓存和可选融合。
 - [evaluation.md](evaluation.md)：当前 44 条结果、指标定义、验证与限制。
@@ -86,6 +103,7 @@ references/           用户提供的原始参考代码
 - [ast-token-experiment.md](ast-token-experiment.md)：token AST 实验方案、结果与限制。
 - [dependency-ast.md](dependency-ast.md)：调用依赖增强的方案、来源审计和44条结果。
 - [hybrid-retrieval.md](hybrid-retrieval.md)：RRF、按路线投票与并列排名评估。
+- [report-multiview.md](report-multiview.md)：模块2、本地生成模型、两阶段运行及证据校验。
 - `references/blaze/processor.py`、`convert_to_chunks.py`：用户提供的 BLAZE 原始代码，原样保存供核对，不是运行入口；同目录 README 记录来源与校验值。
 - `tests/test_bm25_inputs.py`、`test_bm25_metrics.py`、`test_bm25_batch.py`：词法输入、指标和批次规则测试。
 - `tests/test_vector.py`：分块、前缀、缓存、编码输入及融合规则测试，包括对原始动态算法的核对。
@@ -94,24 +112,27 @@ references/           用户提供的原始参考代码
 - `references/blagent/`：用户提供的原始包装代码及校验记录；仅作参考，不执行 Chroma 流程。
 - `tests/test_ast_chunking.py`、`tests/fixtures/multilingual/`：真实语法解析、四路多语言分块及缓存测试。
 - `tests/test_token_ast.py`、`test_dependency_context.py`：实验切块的预算、源码保留、依赖解析与缓存隔离。
+- `tests/test_bench4bl.py`：精确发布版本、离线源码、原仓库HEAD保持不变、篡改检测与缺失gold保留。
 - `tests/test_hybrid.py`、`test_voting.py`：结果配对、融合、投票与并列指标规则。
 
 ## 仅保存在本机的目录
 
 | 目录 | 用途与清理原则 |
 | --- | --- |
-| `datasets/` | 已准备好的三份数据，保留 |
+| `datasets/` | 原有数据、Bench4BL原始包和适配数据，保留 |
 | `models/` | Qwen3-Embedding-0.6B 模型和 tokenizer，保留 |
 | `repos/` | 按修复前提交固定的源码快照，后续实验继续复用 |
 | `cache/chunks/`、`cache/embeddings/` | 有效分块及向量缓存；删除会导致重复计算 |
 | `results/comparison/` | 当前 44 条对比的汇总与固定清单 |
 | `results/bm25/`、`results/vector/` | 当前对比依赖的原始结果；与汇总一起保留 |
 | `results/hybrid/`、`results/voting/` | 融合结果、候选排名及来源记录 |
-| `results/reverted-ui/` | 之前撤销的 Web UI 相关归档；非当前运行入口 |
+| `results/multiview/`、`cache/report_queries/` | 模块2查询、证据、指标和可复用的生成响应 |
+| `.runtime/llama/`、`results/llm/` | 用户提供的本机推理程序、进程记录与服务日志 |
+| `results/maintenance/` | 可恢复的清理归档与清单；旧Web UI备份、无结果的启动失败记录、过期锁及字节码已集中至此 |
 | `results/environment/` | 最近一次环境验证记录 |
 | `results/elasticsearch/` | 安装记录及服务日志 |
 | `.venv/` | 已安装的 Python 环境 |
 | `.runtime/` | ES 程序、生成配置与索引数据 |
 | `.idea/` | 本机 PyCharm 工程设置 |
 
-本次整理保留数据、模型、结果、源码快照、有效缓存及参考代码。失败实验也保留实现与结论，便于复核；不因指标不佳删除研究记录。运行后新生成的结果仍按以上目录保存。提交仓库时检查 `git status`，无需强制添加被忽略的本地文件。
+本次整理保留数据、模型、已产生检索结果的实验、源码快照、有效缓存及参考代码。未启用的旧Web UI备份、两次ES未启动导致的空尝试、过期锁和字节码采用可恢复归档，没有永久删除。失败算法实验的实现、排名与结论继续保留。运行后新生成的结果仍按以上目录保存。提交仓库时检查 `git status`，无需强制添加被忽略的本地文件。

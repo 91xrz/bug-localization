@@ -6,6 +6,15 @@
 
 目录导航：常规配置在 `configs/retrieval/`，研究实验配置在 `configs/experiments/`；运行入口在 `scripts/retrieval/`，已有结果的分析脚本在 `scripts/analysis/`。各文件用途见 [项目文件说明](docs/project-layout.md)。近期实验配置和分析脚本已迁移至上述目录，旧命令请使用本文或实验文档中的新路径。
 
+**Bench4BL 已接入 BM25、Java AST96 和模块2。** 本机已转换46个项目、9,459份报告，运行前启动原有ES，然后执行：
+
+```bash
+python scripts/environment/verify_environment.py --check-bench4bl
+python scripts/retrieval/run_retrieval_comparison.py --config configs/retrieval/bench4bl/comparison.json
+```
+
+默认验证CSV项目5条报告。Bench4BL使用作者发布版本分组，区别于下文SWE-bench的逐缺陷修复前提交；范围、缺失标签与另一台机器的准备步骤见 [Bench4BL使用说明](docs/bench4bl.md)。
+
 代码基线：`5760e1cf78d13782dfe4105dc126c7e40d09086e`（2026-10-16 核对 GitHub main）。本机已验证 Windows / Python 3.12.14 / RTX 5080；下文提供 Ubuntu GPU 服务器部署步骤，**尚未在实验室服务器实测**。全部命令默认在项目根目录执行，Ubuntu 命令使用 Bash。
 
 ## 1. 去实验室前：准备代码、数据与模型
@@ -337,6 +346,8 @@ python scripts/retrieval/run_vector_batch.py --help
 | `configs/retrieval/vector.json` | 模型、device、batch size、512/64 token 预算、固定块 400、AST 1500 字符、聚合及路线 |
 | `configs/experiments/ast_prefix96_candidate.json` | 原 AST 的轻量调参候选：1500 字符、512/96 tokens、仅 AST、44 条；[对比与限制](docs/blagent-ast.md#轻量参数对比2026-10-25) |
 | `configs/experiments/ast_dependency_experiment.json` | AST96 与调用依赖增强对照：每块最多2个函数、总输入仍为512 tokens；[方案、复现与44条结果](docs/dependency-ast.md) |
+| `configs/experiments/report_multiview.json` | 模块2：LLM 一次抽取、q0/q1/q2 三视角查询及加权 RRF；[运行流程与限制](docs/report-multiview.md) |
+| `configs/experiments/report_multiview_crossproject.json` | 模块2跨项目复核：Seaborn 22条、Flask 11条、pytest 11条；[固定协议与结果](docs/report-multiview-crossproject.md) |
 | `configs/retrieval/comparison.json` | 基础/语义配置路径、仓库过滤、44 条、@10 |
 
 修改编码 batch size 可缓解显存压力，但应记录配置变化；不要为跑通而随意修改分块长度、模型精度或评测 K。综合入口没有 `--device` 或 `--routes` 参数，需修改它引用的 vector JSON。使用已有 `selection.json` 时，语义入口支持 `--selection`，不能与 `--limit/--repository` 混用。
