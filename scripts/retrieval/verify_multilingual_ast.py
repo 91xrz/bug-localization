@@ -9,7 +9,7 @@ import sys
 PROJECT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT / 'src'))
 
-from bug_localization.ast_chunking import RoutingChunkCache
+from bug_localization.dependency_context import DependencyRoutingCache as RoutingChunkCache
 from bug_localization.batch import write_json
 from bug_localization.embeddings import LocalEmbedder, digest
 from bug_localization.languages import grammar_versions, language_for_path
@@ -41,6 +41,7 @@ def main():
         embedder = LocalEmbedder(PROJECT, config)
         try:
             cache = RoutingChunkCache(PROJECT, embedder.tokenizer, config, embedder.fingerprint)
+            cache.prepare(documents)
             query, query_info = embedder.query('A cache lookup returns an incorrect value for a supplied key.')
             report = {'status': 'passed', 'scope': 'Small grammar/embedding/ES smoke test; not a benchmark',
                       'fixture_sha256': fixture_hash, 'fixtures': len(documents), 'grammar_versions': grammar_versions(),

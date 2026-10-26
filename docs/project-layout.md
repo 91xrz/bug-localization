@@ -2,6 +2,27 @@
 
 项目根目录保留 README、依赖入口和 Git 忽略规则。代码、配置、说明和参考材料按用途存放；本地数据与运行产物不提交 Git。
 
+```text
+configs/
+  retrieval/       常规 BM25、语义检索和综合对比配置
+  experiments/     AST96、token AST、调用依赖增强的实验配置
+  environment/     基础依赖与环境版本记录
+  elasticsearch/   ES 发行信息与配置模板
+scripts/
+  retrieval/       检索、融合及功能验证入口
+  analysis/        已有实验结果的分析与来源审计
+  environment/     环境检查
+  elasticsearch/   ES 安装包处理与启停
+src/bug_localization/  可复用算法模块
+tests/                单元测试与多语言源码夹具
+docs/                 原理、操作说明与实验结论
+references/           用户提供的原始参考代码
+```
+
+常规对比从 `scripts/retrieval/run_retrieval_comparison.py` 启动；单独语义实验使用 `run_vector_batch.py --config configs/experiments/<配置名>.json`。所有命令从项目根目录运行，JSON 内的数据与模型路径也继续相对于项目根目录。无需在各个子目录间切换。
+
+2026-10-26整理时，三份 `ast_*.json` 实验配置从 `configs/retrieval/` 移至 `configs/experiments/`，两个 `analyze_*_experiment.py` 从 `scripts/retrieval/` 移至 `scripts/analysis/`。历史结果中的配置路径作为运行记录保留；重新运行时请使用新路径。常用检索入口、默认配置、算法模块及缓存位置均未改动。
+
 ## 代码与入口
 
 | 文件 | 职责 |
@@ -16,7 +37,11 @@
 | `src/bug_localization/embeddings.py` | 本地模型编码、池化、归一化及 SQLite 向量缓存 |
 | `src/bug_localization/vector.py` | ES 向量检索、文件聚合、独立分数验证及可选融合 |
 | `src/bug_localization/aggregation.py` | 同一份 Chunk 相似度上的 Max、Top-3 Mean、稳定归一化 LogSumExp |
-| `src/bug_localization/comparison.py` | 绑定同一样本清单，对比 BM25 和三条语义路线 |
+| `src/bug_localization/comparison.py` | 绑定同一样本清单，对比 BM25 和默认四条语义路线 |
+| `src/bug_localization/token_ast.py` | 独立实验：token 预算 AST 贪心与动态规划分块 |
+| `src/bug_localization/dependency_context.py` | 独立实验：Python 静态调用与字段上下文、来源记录及缓存 |
+| `src/bug_localization/hybrid.py` | 对齐已有结果，补齐 BM25 排名并进行文件级 RRF |
+| `src/bug_localization/voting.py` | 按路线投票融合及并列排名的期望指标 |
 | `src/bug_localization/__init__.py` | Python 包标识 |
 | `scripts/environment/verify_environment.py` | 环境检查；`--semantic` 检查编码依赖与 CUDA；`--check-data` 检查本地数据 |
 | `scripts/elasticsearch/setup_elasticsearch.py` | 校验并解压用户下载的 ES ZIP，生成本地配置 |
@@ -27,6 +52,10 @@
 | `scripts/retrieval/run_vector_batch.py` | 四种语义切块与三种聚合入口，可显式开启原有融合控制 |
 | `scripts/retrieval/run_retrieval_comparison.py` | BM25 与四种语义切块公平对比入口，关闭融合 |
 | `scripts/retrieval/verify_multilingual_ast.py` | 十种语法的真实模型与 ES 功能验证 |
+| `scripts/retrieval/fuse_rankings.py` | 已有 BM25 与语义批次的文件级 RRF 入口 |
+| `scripts/retrieval/vote_rankings.py` | 已有排名的按路线投票实验入口 |
+| `scripts/analysis/analyze_chunking_experiment.py` | 配对分块实验的指标、成本与基线一致性分析 |
+| `scripts/analysis/analyze_dependency_experiment.py` | 调用依赖实验的源码来源、预算和配对指标审计 |
 
 ## 配置与依赖
 
@@ -41,6 +70,9 @@
 | `configs/retrieval/bm25_batch.json` | 默认 BM25 批次、样本范围和 @10 评测 |
 | `configs/retrieval/vector.json` | 模型、四种分块、多语言映射、聚合、编码和向量检索配置 |
 | `configs/retrieval/comparison.json` | 当前 44 条 BM25 与四种语义切块对比的配置入口 |
+| `configs/experiments/ast_prefix96_candidate.json` | 原 AST 的96 token前缀候选；不改变默认配置 |
+| `configs/experiments/ast_token_experiment.json` | 原动态块、原 AST 与两种 token AST 对照 |
+| `configs/experiments/ast_dependency_experiment.json` | 原 AST96 与最多2个函数的依赖增强对照 |
 | `.gitignore` | 排除数据、模型、源码快照、缓存、结果、环境和 IDE 设置 |
 
 ## 文档、参考和测试
@@ -51,6 +83,9 @@
 - [evaluation.md](evaluation.md)：当前 44 条结果、指标定义、验证与限制。
 - [file-aggregation.md](file-aggregation.md)：三种文件级聚合、参数、九组对比入口和结果。
 - [blagent-ast.md](blagent-ast.md)：新增 AST 路线、多语言配置、对比与功能验证。
+- [ast-token-experiment.md](ast-token-experiment.md)：token AST 实验方案、结果与限制。
+- [dependency-ast.md](dependency-ast.md)：调用依赖增强的方案、来源审计和44条结果。
+- [hybrid-retrieval.md](hybrid-retrieval.md)：RRF、按路线投票与并列排名评估。
 - `references/blaze/processor.py`、`convert_to_chunks.py`：用户提供的 BLAZE 原始代码，原样保存供核对，不是运行入口；同目录 README 记录来源与校验值。
 - `tests/test_bm25_inputs.py`、`test_bm25_metrics.py`、`test_bm25_batch.py`：词法输入、指标和批次规则测试。
 - `tests/test_vector.py`：分块、前缀、缓存、编码输入及融合规则测试，包括对原始动态算法的核对。
@@ -58,6 +93,8 @@
 - `tests/test_aggregation.py`：聚合公式、归一化、数值稳定性、完整分数清单与九组汇总测试。
 - `references/blagent/`：用户提供的原始包装代码及校验记录；仅作参考，不执行 Chroma 流程。
 - `tests/test_ast_chunking.py`、`tests/fixtures/multilingual/`：真实语法解析、四路多语言分块及缓存测试。
+- `tests/test_token_ast.py`、`test_dependency_context.py`：实验切块的预算、源码保留、依赖解析与缓存隔离。
+- `tests/test_hybrid.py`、`test_voting.py`：结果配对、融合、投票与并列指标规则。
 
 ## 仅保存在本机的目录
 
@@ -69,10 +106,12 @@
 | `cache/chunks/`、`cache/embeddings/` | 有效分块及向量缓存；删除会导致重复计算 |
 | `results/comparison/` | 当前 44 条对比的汇总与固定清单 |
 | `results/bm25/`、`results/vector/` | 当前对比依赖的原始结果；与汇总一起保留 |
+| `results/hybrid/`、`results/voting/` | 融合结果、候选排名及来源记录 |
+| `results/reverted-ui/` | 之前撤销的 Web UI 相关归档；非当前运行入口 |
 | `results/environment/` | 最近一次环境验证记录 |
 | `results/elasticsearch/` | 安装记录及服务日志 |
 | `.venv/` | 已安装的 Python 环境 |
 | `.runtime/` | ES 程序、生成配置与索引数据 |
 | `.idea/` | 本机 PyCharm 工程设置 |
 
-安装用的临时 wheel 缓存、旧单条/5 条试跑结果与源码 `__pycache__` 已清理。运行后新生成的结果仍按以上目录保存。提交仓库时检查 `git status`，无需强制添加被忽略的本地文件。
+本次整理保留数据、模型、结果、源码快照、有效缓存及参考代码。失败实验也保留实现与结论，便于复核；不因指标不佳删除研究记录。运行后新生成的结果仍按以上目录保存。提交仓库时检查 `git status`，无需强制添加被忽略的本地文件。

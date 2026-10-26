@@ -12,17 +12,19 @@ import traceback
 from .batch import aggregate_results, select_samples, write_checkpoints, write_json
 from .aggregation import AGGREGATIONS, aggregate_chunk_scores, validate_temperature
 from .bm25 import collect_files, prepare_report, ranking_metrics, validate_config
-from .ast_chunking import RoutingChunkCache
+from .token_ast import EXPERIMENTAL_ROUTES
+from .dependency_context import DEPENDENCY_ROUTE, DependencyRoutingCache as RoutingChunkCache, validate_dependency_config
 from .languages import grammar_versions, language_for_path, parser_for_language, validate_language_config
 from .embeddings import LocalEmbedder, digest
 from .snapshot import get_snapshot, sha256_file
 
-RETRIEVAL_ROUTES = ('dynamic', 'method', 'fixed', 'blagent_ast')
+BASELINE_ROUTES = ('dynamic', 'method', 'fixed', 'blagent_ast')
+RETRIEVAL_ROUTES = BASELINE_ROUTES + EXPERIMENTAL_ROUTES + (DEPENDENCY_ROUTE,)
 FUSIONS = {'rrf': ('dynamic', 'method'), 'rrf_three': ('dynamic', 'method', 'fixed')}
 
 
 def active_routes(config):
-    routes = config.get('chunking_routes', list(RETRIEVAL_ROUTES))
+    routes = config.get('chunking_routes', list(BASELINE_ROUTES))
     if not isinstance(routes, (list, tuple)) or not routes or any(route not in RETRIEVAL_ROUTES for route in routes):
         raise ValueError('chunking_routes must contain registered semantic routes')
     if len(routes) != len(set(routes)):
@@ -41,6 +43,8 @@ def validate_vector_config(config, base):
     validate_config(base)
     active_fusions(config)
     routes = active_routes(config)
+    if DEPENDENCY_ROUTE in routes:
+        validate_dependency_config(config)
     if any(not set(inputs).issubset(routes) for inputs in active_fusions(config).values()):
         raise ValueError('RRF requires all of its input chunking routes')
     if config.get('file_aggregation', 'max') not in AGGREGATIONS:
@@ -265,7 +269,7 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
                                                'tree-sitter': version('tree-sitter'), 'tree-sitter-python': version('tree-sitter-python'),
                                                'grammar_versions': grammar_versions(),
                                                'implementation_sha256': {name: sha256_file(Path(__file__).with_name(name))
-                                                                         for name in ('chunking.py', 'chunk_cache.py', 'ast_chunking.py', 'languages.py',
+                                                                         for name in ('chunking.py', 'chunk_cache.py', 'ast_chunking.py', 'token_ast.py', 'dependency_context.py', 'languages.py',
                                                                                       'embeddings.py', 'aggregation.py', 'vector.py')}})
     records = {route: [] for route in routes}
     context = {'run_id': run_id, 'dataset': base['dataset'], 'split': base['split'],
@@ -297,6 +301,8 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
             for route in semantic_routes:
                 route_started = time.monotonic()
                 try:
+                    if route == DEPENDENCY_ROUTE:
+                        chunk_cache.prepare(documents)
                     cache_hits_before, cache_misses_before = chunk_cache.hits, chunk_cache.misses
                     chunks, parents = [], []
                     for document in documents:
@@ -335,6 +341,16 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
                                        'languages': sorted({c['language'] for c in chunks}),
                                        'ast_character_fallback_parents': sum('boundary' in p['kind'] or 'fallback' in p['kind'] or
                                                                             'oversized_leaf' in p['kind'] for p in parents)})
+                    if route == DEPENDENCY_ROUTE:
+                        output['dependency_statistics'] = {
+                            'enriched_chunks': sum(bool(c['dependency_context']) for c in chunks),
+                            'chunks_with_functions': sum(bool(c['dependency_functions']) for c in chunks),
+                            'function_previews': sum(len(c['dependency_functions']) for c in chunks),
+                            'field_previews': sum(len(c['dependency_fields']) for c in chunks),
+                            'maximum_functions_per_chunk': max(len(c['dependency_functions']) for c in chunks),
+                            'maximum_context_tokens': max(c['dependency_context_tokens'] for c in chunks),
+                            'resolved_candidates': sum(c['dependency_resolved_candidates'] for c in chunks),
+                            'unresolved_calls': sum(c['dependency_unresolved_calls'] for c in chunks)}
                     if route == 'fixed':
                         output.update({'fixed_chunk_tokens': config['fixed_chunk_tokens'], 'overlap_tokens': 0,
                                        'maximum_body_tokens': max(c['body_tokens'] for c in chunks),
