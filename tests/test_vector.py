@@ -93,6 +93,12 @@ class FusionTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 validate_vector_config({**config, 'chunk_workers': value}, base)
 
+    def test_chunk_prefetch_must_be_boolean(self):
+        base = json.loads((PROJECT / 'configs/retrieval/bm25.json').read_text())
+        config = json.loads((PROJECT / 'configs/retrieval/vector.json').read_text())
+        with self.assertRaises(ValueError):
+            validate_vector_config({**config, 'chunk_prefetch': 'true'}, base)
+
     def test_fixed_unicode_byte_tokens_never_split_a_character_or_drop_source(self):
         text = 'aa🙂bb中cc🙂'
         tokenizer = ByteFallbackTokenizer()

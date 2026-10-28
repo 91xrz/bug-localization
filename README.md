@@ -173,7 +173,7 @@ python -B -m unittest discover -s tests -v
 python -m pip check
 ```
 
-当前测试共 **103 项**；完整依赖安装后应全部通过，注意不要忽略因缺少语法包而出现的 skip。测试不依赖运行中的 ES。环境检查记录写入 `results/environment/verification.json`。
+当前测试共 **104 项**；完整依赖安装后应全部通过，注意不要忽略因缺少语法包而出现的 skip。测试不依赖运行中的 ES。环境检查记录写入 `results/environment/verification.json`。
 
 这里只准备 SWE-bench 时，**不要加 `--check-data`**：该开关要求 BeetleBox、SWE-bench、Ye 三份数据同时存在。只复现 44 条结果不需要另外两份数据。
 
@@ -309,6 +309,8 @@ python scripts/retrieval/run_vector_batch.py --help
 `gpu_count` 指定使用前几块可见 CUDA 设备；`embedding_batch_size` 是所有设备合计的批次。只用一块卡时将 `gpu_count` 改为 1；显存不足时降低批次。批次和设备数量纳入向量缓存身份，变化后会重新编码，数值可能存在细微差异。ES 索引和报告处理仍可能让 GPU 等待，利用率不一定始终满载。不要随意修改分块长度、模型精度或评测 K。综合入口没有 `--device` 或 `--routes` 参数，需修改它引用的 vector JSON。使用已有 `selection.json` 时，语义入口支持 `--selection`，不能与 `--limit/--repository` 混用。
 
 `chunk_workers` 设置按文件并行分块的进程数，默认 8；设为 1 使用串行分块。进程数应遵守实验室资源分配，增加进程不一定更快。依赖图路线 `ast_dependency` 仍按文件串行处理，ES 索引和报告顺序不受此设置影响。
+
+`chunk_prefetch` 为 `true` 时，当前路线完成分块后，后台进程可提前分块同一报告的下一条普通路线，与当前路线的编码及检索重叠；最多提前一条路线。依赖图路线不做预取。设为 `false` 可关闭；单进程和单路线运行不会产生预取。
 
 新增的 token 预算 AST / 动态规划路线是独立实验配置，不改变上述四路默认基线。方案、消融对比及复现命令见 [AST token 实验](docs/ast-token-experiment.md)。
 

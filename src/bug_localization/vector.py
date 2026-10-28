@@ -74,6 +74,8 @@ def validate_vector_config(config, base):
         raise ValueError('gpu_count greater than 1 requires cuda')
     if type(config.get('chunk_workers', 1)) is not int or not 1 <= config.get('chunk_workers', 1) <= 64:
         raise ValueError('chunk_workers must be an integer in [1, 64]')
+    if type(config.get('chunk_prefetch', False)) is not bool:
+        raise ValueError('chunk_prefetch must be a boolean')
     if not isinstance(config.get('query_instruction'), str) or not config['query_instruction'].strip():
         raise ValueError('A fixed query instruction is required')
     if not isinstance(config.get('model_path'), str) or not config['model_path']:
@@ -313,7 +315,8 @@ def evaluate(project, config, base, selected, selection, client, info, embedder,
             query_vector, query_info = embedder.query(body)
             write_json(case / 'query.json', {'body': body, **query_info, 'model_fingerprint': embedder.fingerprint})
             missing = sorted(set(gold) - {d['file_path'] for d in documents})
-            for route in semantic_routes:
+            prefetched = {}
+            for route_index, route in enumerate(semantic_routes):
                 route_started = time.monotonic()
                 try:
                     if route == DEPENDENCY_ROUTE:
@@ -322,7 +325,9 @@ def evaluate(project, config, base, selected, selection, client, info, embedder,
                     chunks, parents = [], []
                     parallel_hits = parallel_misses = 0
                     if pool is not None and route != DEPENDENCY_ROUTE:
-                        results = chunk_documents(pool, documents, route)
+                        results = prefetched.pop(route, None)
+                        if results is None:
+                            results = chunk_documents(pool, documents, route)
                     else:
                         results = ((*(chunk_cache.get(document, route)), 0, 0) for document in documents)
                     for document, (file_chunks, file_parents, hits, misses) in zip(documents, results):
@@ -330,6 +335,10 @@ def evaluate(project, config, base, selected, selection, client, info, embedder,
                         parallel_misses += misses
                         chunks.extend(file_chunks)
                         parents.extend({'file_path': document['file_path'], **parent} for parent in file_parents)
+                    if pool is not None and config.get('chunk_prefetch', False) and route_index + 1 < len(semantic_routes):
+                        next_route = semantic_routes[route_index + 1]
+                        if next_route != DEPENDENCY_ROUTE:
+                            prefetched[next_route] = chunk_documents(pool, documents, next_route)
                     print(f'  {route}: {len(chunks)} chunks / {len(documents)} files', flush=True)
                     write_json(case / (route + '_chunks.json'), {'chunks': chunks, 'original_blocks': parents,
                                                                'source_reconstruction_verified': True})
