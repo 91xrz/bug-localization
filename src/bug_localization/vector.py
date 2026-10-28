@@ -17,6 +17,7 @@ from .dependency_context import DEPENDENCY_ROUTE, DependencyRoutingCache as Rout
 from .languages import grammar_versions, language_for_path, parser_for_language, validate_language_config
 from .embeddings import LocalEmbedder, digest
 from .snapshot import get_snapshot, sha256_file
+from .parallel_chunking import create_pool, chunk_documents
 
 BASELINE_ROUTES = ('dynamic', 'method', 'fixed', 'blagent_ast')
 RETRIEVAL_ROUTES = BASELINE_ROUTES + EXPERIMENTAL_ROUTES + (DEPENDENCY_ROUTE,)
@@ -66,6 +67,13 @@ def validate_vector_config(config, base):
         raise ValueError('Fixed body plus prefix and special-token allowance exceeds max_tokens')
     if config.get('device') not in ('cuda', 'cpu'):
         raise ValueError('device must be cuda or cpu')
+    gpu_count = config.get('gpu_count', 1)
+    if type(gpu_count) is not int or not 1 <= gpu_count <= 8:
+        raise ValueError('gpu_count must be an integer in [1, 8]')
+    if config['device'] == 'cpu' and gpu_count != 1:
+        raise ValueError('gpu_count greater than 1 requires cuda')
+    if type(config.get('chunk_workers', 1)) is not int or not 1 <= config.get('chunk_workers', 1) <= 64:
+        raise ValueError('chunk_workers must be an integer in [1, 64]')
     if not isinstance(config.get('query_instruction'), str) or not config['query_instruction'].strip():
         raise ValueError('A fixed query instruction is required')
     if not isinstance(config.get('model_path'), str) or not config['model_path']:
@@ -249,13 +257,18 @@ def run_semantic_batch(project, config):
         if info['cluster_name'] != base['cluster_name'] or not info['version']['number'].startswith('9.'):
             raise ValueError('The configured project Elasticsearch 9.x must be running')
         embedder = LocalEmbedder(project, config)
+        pool = None
         try:
-            return evaluate(project, config, base, selected, selection, client, info, embedder)
+            if config.get('chunk_workers', 1) > 1:
+                pool = create_pool(project, config, embedder.fingerprint)
+            return evaluate(project, config, base, selected, selection, client, info, embedder, pool)
         finally:
+            if pool is not None:
+                pool.shutdown(wait=True, cancel_futures=True)
             embedder.close()
 
 
-def evaluate(project, config, base, selected, selection, client, info, embedder):
+def evaluate(project, config, base, selected, selection, client, info, embedder, pool=None):
     run_id = base['dataset'] + '_' + base['split'] + '_' + datetime.now(timezone(timedelta(hours=8))).strftime('%Y%m%d_%H%M%S_%f')
     folder = project / 'results/vector/batches' / run_id
     folder.mkdir(parents=True)
@@ -269,7 +282,7 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
                                                'tree-sitter': version('tree-sitter'), 'tree-sitter-python': version('tree-sitter-python'),
                                                'grammar_versions': grammar_versions(),
                                                'implementation_sha256': {name: sha256_file(Path(__file__).with_name(name))
-                                                                         for name in ('chunking.py', 'chunk_cache.py', 'ast_chunking.py', 'token_ast.py', 'dependency_context.py', 'languages.py', 'snapshot.py', 'bench4bl.py',
+                                                                         for name in ('chunking.py', 'chunk_cache.py', 'parallel_chunking.py', 'ast_chunking.py', 'token_ast.py', 'dependency_context.py', 'languages.py', 'snapshot.py', 'bench4bl.py',
                                                                                       'embeddings.py', 'aggregation.py', 'vector.py')}})
     records = {route: [] for route in routes}
     context = {'run_id': run_id, 'dataset': base['dataset'], 'split': base['split'],
@@ -307,8 +320,14 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
                         chunk_cache.prepare(documents)
                     cache_hits_before, cache_misses_before = chunk_cache.hits, chunk_cache.misses
                     chunks, parents = [], []
-                    for document in documents:
-                        file_chunks, file_parents = chunk_cache.get(document, route)
+                    parallel_hits = parallel_misses = 0
+                    if pool is not None and route != DEPENDENCY_ROUTE:
+                        results = chunk_documents(pool, documents, route)
+                    else:
+                        results = ((*(chunk_cache.get(document, route)), 0, 0) for document in documents)
+                    for document, (file_chunks, file_parents, hits, misses) in zip(documents, results):
+                        parallel_hits += hits
+                        parallel_misses += misses
                         chunks.extend(file_chunks)
                         parents.extend({'file_path': document['file_path'], **parent} for parent in file_parents)
                     print(f'  {route}: {len(chunks)} chunks / {len(documents)} files', flush=True)
@@ -337,8 +356,8 @@ def evaluate(project, config, base, selected, selection, client, info, embedder)
                                    'oversized_statement_splits': sum(c['split_reason'] == 'oversized_statement_token_boundary' for c in chunks),
                                    'maximum_input_tokens': max(c['token_count'] for c in chunks),
                                    'maximum_prefix_tokens': max(c['prefix_tokens'] for c in chunks),
-                                   'chunk_cache_hits': chunk_cache.hits - cache_hits_before,
-                                   'chunk_cache_misses': chunk_cache.misses - cache_misses_before,
+                                   'chunk_cache_hits': chunk_cache.hits - cache_hits_before + parallel_hits,
+                                   'chunk_cache_misses': chunk_cache.misses - cache_misses_before + parallel_misses,
                                    'cache_hits': embedder.hits - before_hits, 'new_embeddings': embedder.misses - before_misses})
                     if route == 'blagent_ast':
                         output.update({'ast_max_chars': config.get('ast_max_chars', 1500), 'overlap_tokens': 0,

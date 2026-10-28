@@ -86,6 +86,13 @@ class FusionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_vector_config(config, base)
 
+    def test_chunk_worker_count_is_bounded(self):
+        base = json.loads((PROJECT / 'configs/retrieval/bm25.json').read_text())
+        config = json.loads((PROJECT / 'configs/retrieval/vector.json').read_text())
+        for value in (0, 65, True, 1.5):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                validate_vector_config({**config, 'chunk_workers': value}, base)
+
     def test_fixed_unicode_byte_tokens_never_split_a_character_or_drop_source(self):
         text = 'aa🙂bb中cc🙂'
         tokenizer = ByteFallbackTokenizer()

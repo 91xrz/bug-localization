@@ -40,6 +40,7 @@ Bench4BL的四份检索配置现集中于 `configs/retrieval/bench4bl/`，文件
 | `src/bug_localization/ast_chunking.py` | BLagent 风格递归 AST 切块、多语言适配及独立缓存，保留旧 Python 三路行为 |
 | `src/bug_localization/languages.py` | 语言扩展名、真实语法节点、解析器及版本注册 |
 | `src/bug_localization/chunk_cache.py` | 按源码、参数和实现指纹复用并校验分块 |
+| `src/bug_localization/parallel_chunking.py` | 普通分块路线按文件多进程处理，并保持输入顺序 |
 | `src/bug_localization/embeddings.py` | 本地模型编码、池化、归一化及 SQLite 向量缓存 |
 | `src/bug_localization/vector.py` | ES 向量检索、文件聚合、独立分数验证及可选融合 |
 | `src/bug_localization/aggregation.py` | 同一份 Chunk 相似度上的 Max、Top-3 Mean、稳定归一化 LogSumExp |
@@ -75,7 +76,7 @@ Bench4BL的四份检索配置现集中于 `configs/retrieval/bench4bl/`，文件
 | --- | --- |
 | `requirements.txt` | 当前完整环境的直接依赖，包含 CUDA 12.8 版 PyTorch |
 | `configs/environment/requirements-base.txt` | 仅数据检查和 BM25 所需的直接依赖，被完整依赖入口引用 |
-| `configs/environment/requirements.lock.txt` | 当前环境的全部安装版本，供复现使用 |
+| `configs/environment/requirements.lock.txt` | 原 Windows 环境的安装版本记录；服务器运行记录保存在 `results/reproduction/` |
 | `configs/elasticsearch/distribution.json` | ES 发行版本、官方 ZIP 地址和 SHA512 |
 | `configs/elasticsearch/elasticsearch.yml` | 本地 ES 配置模板 |
 | `configs/retrieval/bm25.json` | 单条 BM25、候选文件与查询规则 |
@@ -120,7 +121,7 @@ Bench4BL的四份检索配置现集中于 `configs/retrieval/bench4bl/`，文件
 | 目录 | 用途与清理原则 |
 | --- | --- |
 | `datasets/` | 原有数据、Bench4BL原始包和适配数据，保留 |
-| `models/` | Qwen3-Embedding-0.6B 模型和 tokenizer，保留 |
+| `models/` | Qwen3-Embedding-0.6B、BlazeModel 等本地模型，保留 |
 | `repos/` | 按修复前提交固定的源码快照，后续实验继续复用 |
 | `cache/chunks/`、`cache/embeddings/` | 有效分块及向量缓存；删除会导致重复计算 |
 | `results/comparison/` | 当前 44 条对比的汇总与固定清单 |
@@ -128,11 +129,11 @@ Bench4BL的四份检索配置现集中于 `configs/retrieval/bench4bl/`，文件
 | `results/hybrid/`、`results/voting/` | 融合结果、候选排名及来源记录 |
 | `results/multiview/`、`cache/report_queries/` | 模块2查询、证据、指标和可复用的生成响应 |
 | `.runtime/llama/`、`results/llm/` | 用户提供的本机推理程序、进程记录与服务日志 |
-| `results/maintenance/` | 可恢复的清理归档与清单；旧Web UI备份、无结果的启动失败记录、过期锁及字节码已集中至此 |
+| `results/reproduction/`、`results/cpu-benchmark/`、`results/gpu-smoke/` | 本服务器运行日志、环境记录和性能测量 |
 | `results/environment/` | 最近一次环境验证记录 |
 | `results/elasticsearch/` | 安装记录及服务日志 |
 | `.venv/` | 已安装的 Python 环境 |
 | `.runtime/` | ES 程序、生成配置与索引数据 |
 | `.idea/` | 本机 PyCharm 工程设置 |
 
-本次整理保留数据、模型、已产生检索结果的实验、源码快照、有效缓存及参考代码。未启用的旧Web UI备份、两次ES未启动导致的空尝试、过期锁和字节码采用可恢复归档，没有永久删除。失败算法实验的实现、排名与结论继续保留。运行后新生成的结果仍按以上目录保存。提交仓库时检查 `git status`，无需强制添加被忽略的本地文件。
+数据、模型、实验结果、源码快照、有效缓存及参考代码均需保留；这些本地资产不随 Git 上传，应单独备份。Python 字节码可以重新生成。提交仓库时检查 `git status`，无需强制添加被忽略的本地文件。

@@ -15,64 +15,36 @@ python scripts/retrieval/run_retrieval_comparison.py --config configs/retrieval/
 
 默认验证CSV项目5条报告。Bench4BL使用作者发布版本分组，区别于下文SWE-bench的逐缺陷修复前提交；范围、缺失标签与另一台机器的准备步骤见 [Bench4BL使用说明](docs/bench4bl.md)。
 
-代码基线：`5760e1cf78d13782dfe4105dc126c7e40d09086e`（2026-10-16 核对 GitHub main）。本机已验证 Windows / Python 3.12.14 / RTX 5080；下文提供 Ubuntu GPU 服务器部署步骤，**尚未在实验室服务器实测**。全部命令默认在项目根目录执行，Ubuntu 命令使用 Bash。
+当前实验服务器为 Ubuntu x86_64，项目目录是 `/home/xrz/IRBL/bug-localization`。Python 3.12 虚拟环境、数据、Qwen 模型和 Elasticsearch 9.5.5 已准备；2026-10-28 已完成 requests 44 条对比。默认使用两块可见 GPU 和 8 个分块进程，具体资源应遵守服务器分配。所有命令从项目根目录执行。
 
-## 1. 去实验室前：准备代码、数据与模型
+## 1. 服务器上的文件
 
-Git 仓库不包含数据、模型、环境、ES 软件及实验结果。建议直接携带本机已验证的文件：
+| 路径 | 用途 |
+| --- | --- |
+| `.venv/` | 本服务器 Python 环境 |
+| `datasets/` | SWE-bench、Bench4BL 等数据，不随 Git 上传 |
+| `models/Qwen3-Embedding-0.6B/` | 语义检索模型，本地加载 |
+| `repos/` | 按固定提交保存的源码快照 |
+| `.runtime/elasticsearch/` | Elasticsearch 程序、配置和索引数据 |
+| `cache/` | 分块与向量缓存，删除后需要重新计算 |
+| `results/` | 结果、日志与实验配置记录 |
 
-| 文件或目录 | 是否需要 | 说明 |
-| --- | --- | --- |
-| Git 仓库 | 必须 | 到服务器 clone；也可携带当前代码及本 README |
-| `datasets/swe_bench_formatted/` | 必须 | 整个目录原样复制，包括 Arrow、JSON 元数据；test 为 2,294 条 |
-| `models/Qwen3-Embedding-0.6B/` | 必须 | 整个模型目录原样复制，约 1.2 GB 权重 |
-| `repos/psf/requests/` | 建议 | 已缓存的修复前源码快照；服务器无 GitHub 网络时必须准备齐全 |
-| `datasets/BeetleBox/`、`datasets/ye/` | 本轮不需要 | BeetleBox 可供后续测试；Ye 缺修复前提交映射，目前不能直接运行 |
-| `results/` 中原始基准结果 | 可选 | 用于逐样本核对，不能替代服务器重新运行 |
-| Windows `.venv/`、`.runtime/` | 不复制 | Python 环境与 ES Linux 发行包须在服务器重新准备 |
+2026-10-28 的 44 条实验结果位于 `results/comparison/20261028_182534_372429/`；结果、数据、模型、快照和缓存均被 Git 忽略，需单独备份。
 
-推荐用文件传输工具原样上传；不要经编辑器重存 Arrow、源码或 tokenizer 文件。可在 Windows PowerShell 打包必要资产（运行前确认输出位置）：
-
-```powershell
-tar.exe -czf ..\bug-localization-assets.tar.gz datasets/swe_bench_formatted models/Qwen3-Embedding-0.6B repos/psf/requests
-Get-FileHash ..\bug-localization-assets.tar.gz -Algorithm SHA256
-```
-
-若没有 `repos/psf/requests`，去掉命令最后一项，后续检索会按固定提交下载缺失快照。到服务器后将压缩包放入项目根目录，核对传输前后的 SHA256，再解压：
+## 2. 进入环境
 
 ```bash
-sha256sum bug-localization-assets.tar.gz
-tar -xzf bug-localization-assets.tar.gz
-```
-
-不要复制 Windows 的 ES 索引数据到新的 Linux ES 实例。向量/分块缓存也非必需；GPU、设备或库版本变化可能产生新缓存指纹，重新编码属于正常现象。
-
-## 2. 服务器：获取代码并创建 Python 环境
-
-需要普通用户账户、Git、Python 3.12（含 venv）、NVIDIA 驱动及可用 GPU。长实验推荐已安装 tmux；这些系统软件由用户或实验室管理员准备。以下主流程面向 **Ubuntu x86_64 + 支持 BF16 的 NVIDIA GPU**。
-
-```bash
-git clone https://github.com/91xrz/bug-localization.git
-cd bug-localization
-git rev-parse HEAD
-nvidia-smi
-
-python3.12 -m venv .venv
+cd /home/xrz/IRBL/bug-localization
 source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
 python -m pip check
+nvidia-smi
 ```
 
-需要严格固定算法版本时，在创建环境前执行 `git checkout 5760e1cf78d13782dfe4105dc126c7e40d09086e`；复现过程按本文操作。若服务器只有已安装的 Conda，可先执行 `conda create -n irbl-python python=3.12 -y`、`conda activate irbl-python`，再使用 `python -m venv .venv` 继续以上步骤。无需同时重新安装 Conda 和 Python。
-
-`requirements.txt` 固定直接依赖，包括 PyTorch `2.11.0+cu128`、Transformers `5.19.0` 及多语言 AST 语法包，已配置 CUDA wheel 索引。服务器驱动必须能运行该 wheel；不依靠单独安装 CUDA Toolkit 修复驱动不兼容问题。当前 CUDA 编码器要求 BF16；不支持时只能显式切换 CPU 或另行设计实验，不能称为相同 GPU 配置。
-
-`configs/environment/requirements.lock.txt` 是 Windows 已安装环境的记录；Ubuntu 先安装根目录依赖并验证，再保存服务器自己的完整依赖清单。不要直接复制 Windows 虚拟环境，也不要遇到找不到版本就任意升级后继续声称相同配置。只测试 BM25 时可改装 `configs/environment/requirements-base.txt`。
+如需重建环境，使用 Python 3.12 创建 `.venv` 并安装 `requirements.txt`；不要覆盖仍需保留的现有环境。固定直接依赖包括 PyTorch `2.11.0+cu128`。`configs/environment/requirements.lock.txt` 是原 Windows 环境记录，不是服务器当前锁文件。服务器实测依赖记录见 `results/reproduction/requests44-20261028/requirements.txt`。
 
 ## 3. 确认数据与模型就绪
 
-完成第 1 节传输后，目录应为：
+当前服务器中的数据和模型目录应包含：
 
 ```text
 datasets/swe_bench_formatted/dataset_dict.json
@@ -113,7 +85,7 @@ print("通过：2,294 条数据，44 条 requests 报告，四个模型文件与
 PY
 ```
 
-模型哈希取自本机原始实验的 `effective_config.json`，用于识别是否携带了同一版本。模型运行时仅从本地读取，不会自动下载。
+模型哈希取自原始实验的 `effective_config.json`，用于识别是否使用了同一版本。模型运行时仅从本地读取，不会自动下载。
 
 <details>
 <summary>没有本机资产时：从公开来源重新准备</summary>
@@ -158,53 +130,37 @@ PY
 
 </details>
 
-## 4. Ubuntu：手动准备并启动 Elasticsearch 9.5.5
+## 4. 启动本服务器的 Elasticsearch
 
-**ES 是独立服务，BM25 已内置，不需要另外安装 BM25、Kibana 或 Chroma。** 请用户自行下载官方 [Linux x86_64 压缩包](https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-9.5.5-linux-x86_64.tar.gz) 和对应 [SHA512 文件](https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-9.5.5-linux-x86_64.tar.gz.sha512)，例如放到服务器 `~/Downloads/`。仓库的 `setup_elasticsearch.py` / `.ps1` 仅支持 Windows，Ubuntu 不运行它们。
-
-以下针对新建的个人实验实例；不要覆盖实验室已有 ES 配置。先校验下载包：
+当前项目专用 Elasticsearch 9.5.5 已安装在 `.runtime/elasticsearch/`，配置只监听 `127.0.0.1`，不启用认证。启动前先检查是否已有服务：
 
 ```bash
-(cd ~/Downloads && sha512sum -c elasticsearch-9.5.5-linux-x86_64.tar.gz.sha512)
-mkdir -p .runtime/elasticsearch results/elasticsearch/server
-tar -xzf ~/Downloads/elasticsearch-9.5.5-linux-x86_64.tar.gz -C .runtime/elasticsearch
-mkdir -p .runtime/elasticsearch/config
-cp -a .runtime/elasticsearch/elasticsearch-9.5.5/config/. .runtime/elasticsearch/config/
-cp configs/elasticsearch/elasticsearch.yml .runtime/elasticsearch/config/elasticsearch.yml
-mkdir -p .runtime/elasticsearch/config/jvm.options.d
-printf '%s\n' '-Xms1g' '-Xmx1g' > .runtime/elasticsearch/config/jvm.options.d/heap.options
+curl --fail --max-time 3 http://127.0.0.1:9200
 ```
 
-配置沿用项目的 `bug-localization-local` 集群名、单节点、`127.0.0.1:9200` 和无认证模式。只用于隔离的个人实验，勿将该配置暴露到公网或覆盖共享生产服务。运行前检查：
+如果已响应，确认 `cluster_name` 为 `bug-localization-local` 且版本为 9.5.5；不要启动第二个实例，也不要停止其他人的服务。没有服务时，在项目根目录以普通用户启动：
 
 ```bash
 ss -ltn | grep -E ':(9200|9300)\b' || true
-sysctl vm.max_map_count
-```
-
-若端口被占用，先确认归属，不能直接结束别人的服务。若 `vm.max_map_count` 小于 `1048576`，请管理员依照 [Elastic 系统配置说明](https://www.elastic.co/docs/deploy-manage/deploy/self-managed/vm-max-map-count) 调整；不要自行修改共享服务器全局配置。
-
-使用普通用户启动独立后台 ES，并记录 PID：
-
-```bash
 ES_PATH_CONF="$PWD/.runtime/elasticsearch/config" \
   "$PWD/.runtime/elasticsearch/elasticsearch-9.5.5/bin/elasticsearch" \
   -d -p "$PWD/.runtime/elasticsearch/elasticsearch.pid" \
   -Epath.data="$PWD/.runtime/elasticsearch/data" \
   -Epath.logs="$PWD/results/elasticsearch/server"
-curl --retry 20 --retry-connrefused --retry-delay 2 --fail http://127.0.0.1:9200
+curl --fail --retry 30 --retry-connrefused --retry-delay 2 \
+  'http://127.0.0.1:9200/_cluster/health?wait_for_status=green&timeout=60s'
 ```
 
-预期响应：`cluster_name = bug-localization-local`、`version.number = 9.5.5`。如果失败，查看 `results/elasticsearch/server/` 中的服务日志。后台启动及 PID 用法来自 [Elastic 官方安装说明](https://www.elastic.co/docs/deploy-manage/deploy/self-managed/install-elasticsearch-from-archive-on-linux-macos)。
+等待响应中的 `status` 为 `green` 且 `timed_out` 为 `false`，再运行实验；仅 HTTP 端口就绪时索引仍可能正在恢复。日志位于 `results/elasticsearch/server/`。当前节点采用本地无认证配置，不要暴露到公网或覆盖共享服务。
 
-若必须使用其他空闲端口，修改本地生成的 `elasticsearch.yml` 的 HTTP/transport 端口，同时修改 `configs/retrieval/bm25.json` 的 `endpoint`。语义和综合对比共用该基础配置。当前客户端没有额外的用户名/密码/TLS 参数入口，不应直接连接需要这些设置的共享实例。同一项目目录中串行运行实验；现有 CLI 没有资源调度或并发写入锁。
+安装包和 SHA512 文件保存在 `.runtime/downloads/`；如果必须重建，先确认现有数据已备份，然后参考 [Elasticsearch 说明](docs/elasticsearch.md) 和本服务器的 Linux 压缩包。不要重复解压覆盖正在使用的安装或数据。多次实验串行运行：当前 CLI 没有并发写入锁。
 
 ## 5. 环境与单元测试
 
-选择实验室分配的 GPU，例如 GPU 0；有调度系统时遵守其设备分配，不要覆盖调度器已设置的 `CUDA_VISIBLE_DEVICES`：
+默认向量实验配置使用两块可见 GPU，编码总批次为 64（通常每卡 32）。选择实验室分配的两块 GPU；有调度系统时遵守其设备分配，不要覆盖调度器已设置的 `CUDA_VISIBLE_DEVICES`：
 
 ```bash
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0,1
 python scripts/environment/verify_environment.py --semantic
 python - <<'PY'
 import torch
@@ -217,7 +173,7 @@ python -B -m unittest discover -s tests -v
 python -m pip check
 ```
 
-基线当前有 **52 项单元测试**；完整依赖安装后应全部通过，注意不要忽略因缺少语法包而出现的 skip。测试不依赖运行中的 ES。环境检查记录写入 `results/environment/verification.json`。
+当前测试共 **103 项**；完整依赖安装后应全部通过，注意不要忽略因缺少语法包而出现的 skip。测试不依赖运行中的 ES。环境检查记录写入 `results/environment/verification.json`。
 
 这里只准备 SWE-bench 时，**不要加 `--check-data`**：该开关要求 BeetleBox、SWE-bench、Ye 三份数据同时存在。只复现 44 条结果不需要另外两份数据。
 
@@ -244,12 +200,12 @@ tmux new -s irbl-44
 ```bash
 source .venv/bin/activate
 # 仅在没有调度器分配设备时设置；数字应替换为自己获准使用的 GPU。
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=0,1
 mkdir -p results/reproduction
 TASK_RUN=$(date +%Y%m%d_%H%M%S)
 git rev-parse HEAD > "results/reproduction/$TASK_RUN.commit.txt"
 git status --short > "results/reproduction/$TASK_RUN.git-status.txt"
-git diff -- configs/retrieval > "results/reproduction/$TASK_RUN.config-diff.txt"
+git diff > "results/reproduction/$TASK_RUN.git-diff.patch"
 python -m pip freeze > "results/reproduction/$TASK_RUN.requirements.txt"
 nvidia-smi > "results/reproduction/$TASK_RUN.gpu.txt"
 set -o pipefail
@@ -312,15 +268,15 @@ for route, values in report["routes"].items():
 PY
 ```
 
-本机 **Max 主聚合**参考值：
+本服务器 2026-10-28 运行的 **Max 主聚合**结果（双卡、总批次 64；此次运行前已存在部分缓存）：
 
 | 路线 | MAP@10 | MRR@10 | Top-1 | Top-5 | Top-10 | MeanRecall@10 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | BM25 | 0.4596 | 0.5080 | 0.2727 | 0.8182 | 0.9318 | 0.8632 |
-| 动态块 | 0.5650 | 0.6082 | 0.4091 | 0.8636 | 0.9545 | 0.9276 |
-| 方法块 | 0.5239 | 0.5684 | 0.4091 | 0.7727 | 0.9091 | 0.8949 |
-| 固定块 400 tokens | 0.5466 | 0.5606 | 0.3409 | 0.8864 | 0.9318 | 0.9176 |
-| BLagent AST | 0.6297 | 0.6526 | 0.4773 | 0.8636 | 0.9545 | 0.9418 |
+| 动态块 | 0.5711 | 0.6103 | 0.4091 | 0.8636 | 0.9545 | 0.9276 |
+| 方法块 | 0.5349 | 0.5797 | 0.4318 | 0.7727 | 0.9091 | 0.8949 |
+| 固定块 400 tokens | 0.5463 | 0.5609 | 0.3409 | 0.8864 | 0.9318 | 0.9176 |
+| BLagent AST | 0.6289 | 0.6521 | 0.4773 | 0.8636 | 0.9545 | 0.9403 |
 
 服务器 GPU、内核和数值运算不同，不能承诺浮点分数逐位相同；先核对样本、模型哈希、参数和成功数，再比较排名与指标。ES/NumPy 分数核对沿用代码中的 `2e-5` 容差，这不等于允许任意指标差异。
 
@@ -350,7 +306,9 @@ python scripts/retrieval/run_vector_batch.py --help
 | `configs/experiments/report_multiview_crossproject.json` | 模块2跨项目复核：Seaborn 22条、Flask 11条、pytest 11条；[固定协议与结果](docs/report-multiview-crossproject.md) |
 | `configs/retrieval/comparison.json` | 基础/语义配置路径、仓库过滤、44 条、@10 |
 
-修改编码 batch size 可缓解显存压力，但应记录配置变化；不要为跑通而随意修改分块长度、模型精度或评测 K。综合入口没有 `--device` 或 `--routes` 参数，需修改它引用的 vector JSON。使用已有 `selection.json` 时，语义入口支持 `--selection`，不能与 `--limit/--repository` 混用。
+`gpu_count` 指定使用前几块可见 CUDA 设备；`embedding_batch_size` 是所有设备合计的批次。只用一块卡时将 `gpu_count` 改为 1；显存不足时降低批次。批次和设备数量纳入向量缓存身份，变化后会重新编码，数值可能存在细微差异。ES 索引和报告处理仍可能让 GPU 等待，利用率不一定始终满载。不要随意修改分块长度、模型精度或评测 K。综合入口没有 `--device` 或 `--routes` 参数，需修改它引用的 vector JSON。使用已有 `selection.json` 时，语义入口支持 `--selection`，不能与 `--limit/--repository` 混用。
+
+`chunk_workers` 设置按文件并行分块的进程数，默认 8；设为 1 使用串行分块。进程数应遵守实验室资源分配，增加进程不一定更快。依赖图路线 `ast_dependency` 仍按文件串行处理，ES 索引和报告顺序不受此设置影响。
 
 新增的 token 预算 AST / 动态规划路线是独立实验配置，不改变上述四路默认基线。方案、消融对比及复现命令见 [AST token 实验](docs/ast-token-experiment.md)。
 
@@ -358,7 +316,7 @@ python scripts/retrieval/run_vector_batch.py --help
 
 若比较“每路最多一票、不按输入名次加权”，可用 `python scripts/retrieval/vote_rankings.py --input-run HYBRID_BATCH_DIRECTORY --depths all 10` 离线读取混合结果。本次纯投票同分很多，指标与同票处理有关；[投票说明](docs/hybrid-retrieval.md#不使用名次的路线投票2026-10-25)同时报告固定展示顺序与随机同票排序期望。
 
-## 10. 常见问题与 Windows 运行
+## 10. 常见问题
 
 | 现象 | 处理 |
 | --- | --- |
@@ -373,14 +331,6 @@ python scripts/retrieval/run_vector_batch.py --help
 | 结果含失败或低于基准 | 先查 cases/*error.json、运行日志、样本指纹和模型哈希，不能直接当算法退化 |
 | 只看到旧结果 | 每次批次目录唯一；以本次日志的输出路径为准 |
 
-Windows 已有环境与 ES 时，仍使用原入口：
-
-```powershell
-.\scripts\elasticsearch\start_elasticsearch.ps1
-# 另一个终端，在项目根目录运行：
-.\.venv\Scripts\python.exe -B scripts\retrieval\run_retrieval_comparison.py --limit 44
-```
-
-Windows 新建环境、手动下载 ES ZIP 与本地配置参见 [ES 说明](docs/elasticsearch.md)。PyCharm 选择项目 `.venv/Scripts/python.exe`（Ubuntu 为 `.venv/bin/python`），运行 `scripts/retrieval/run_retrieval_comparison.py`；Working directory 设为项目根目录。
+服务器使用项目 `.venv/bin/python`；在 IDE 中将 Working directory 设置为项目根目录。
 
 更多细节：[数据来源](docs/datasets.md) · [语义检索](docs/semantic-retrieval.md) · [文件聚合](docs/file-aggregation.md) · [多语言 AST](docs/blagent-ast.md) · [文件结构](docs/project-layout.md)。数据、模型、缓存、快照、环境和结果继续由 `.gitignore` 排除，实验结束后单独备份所需结果。

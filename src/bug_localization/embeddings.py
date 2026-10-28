@@ -23,11 +23,16 @@ class LocalEmbedder:
         required = ['model.safetensors', 'config.json', 'tokenizer.json', 'tokenizer_config.json']
         hashes = {name: sha256_file(self.path / name) for name in required}
         self.device = config['device']
+        self.gpu_count = config.get('gpu_count', 1) if self.device == 'cuda' else 0
         if self.device == 'cuda' and not torch.cuda.is_available():
             raise ValueError('CUDA is not available; install the CUDA PyTorch wheel or explicitly select cpu')
+        if self.device == 'cuda' and torch.cuda.device_count() < self.gpu_count:
+            raise ValueError(f'Requested {self.gpu_count} GPUs, but only {torch.cuda.device_count()} are visible')
         self.dtype = torch.bfloat16 if self.device == 'cuda' else torch.float32
-        if self.device == 'cuda' and not torch.cuda.is_bf16_supported():
-            raise ValueError('The configured CUDA device does not support bfloat16')
+        for index in range(self.gpu_count):
+            with torch.cuda.device(index):
+                if not torch.cuda.is_bf16_supported():
+                    raise ValueError(f'CUDA device {index} does not support bfloat16')
         self.tokenizer = AutoTokenizer.from_pretrained(str(self.path), local_files_only=True,
                                                      trust_remote_code=False, padding_side='left')
         self.tokenizer.model_max_length = 10**9  # Chunking measures length explicitly, without silent truncation.
@@ -36,10 +41,11 @@ class LocalEmbedder:
         self.identity = {'model_path': config['model_path'], 'files_sha256': hashes,
                          'dimension': self.dimension, 'pooling': 'last_nonpadding_token',
                          'normalization': 'L2', 'dtype': str(self.dtype), 'device': self.device,
+                         'gpu_count': self.gpu_count, 'embedding_batch_size': config['embedding_batch_size'],
                          'max_tokens': config['max_tokens'],
                          'torch': version('torch'), 'transformers': version('transformers'),
                          'encoder_sha256': sha256_file(Path(__file__)),
-                         'gpu': torch.cuda.get_device_name(0) if self.device == 'cuda' else None}
+                         'gpu': [torch.cuda.get_device_name(i) for i in range(self.gpu_count)]}
         self.fingerprint = digest(self.identity)
         folder = project / 'cache/embeddings' / self.fingerprint
         folder.mkdir(parents=True, exist_ok=True)
@@ -51,11 +57,14 @@ class LocalEmbedder:
 
     def load_model(self):
         if self.model is None:
+            import torch
             from transformers import AutoModel
             print('Loading local Qwen model on ' + self.device + ' (no model download)', flush=True)
             self.model = AutoModel.from_pretrained(str(self.path), local_files_only=True, trust_remote_code=False,
                                                   dtype=self.dtype, attn_implementation='sdpa')
             self.model.to(self.device).eval()
+            if self.gpu_count > 1:
+                self.model = torch.nn.DataParallel(self.model, device_ids=list(range(self.gpu_count)))
 
     def encode(self, texts):
         import numpy as np
