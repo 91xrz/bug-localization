@@ -1,10 +1,10 @@
 # Local datasets, downloaded models, and generated experiment outputs.
-/datasets/
-/models/
-/results/
-/repos/
-/repositories/
-/cache/
+/datasets
+/models
+/results
+/repos
+/repositories
+/cache
 /.cache/
 /.build/
 /.runtime/

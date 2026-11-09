@@ -19,6 +19,9 @@ def snapshot_inventory(root):
 
 
 def get_snapshot(project, repository, commit, *, source_provider=None, source_dataset=None):
+    if source_provider == 'lca_git':
+        from .lca import local_snapshot
+        return local_snapshot(project, source_dataset, repository, commit)
     if source_provider == 'bench4bl_release':
         from .bench4bl import local_snapshot
         return local_snapshot(project, source_dataset, repository, commit)

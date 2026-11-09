@@ -8,6 +8,7 @@ from pathlib import PurePosixPath
 GRAMMARS = {
     'python': ('tree_sitter_python', 'language'),
     'java': ('tree_sitter_java', 'language'),
+    'kotlin': ('tree_sitter_kotlin', 'language'),
     'javascript': ('tree_sitter_javascript', 'language'),
     'typescript': ('tree_sitter_typescript', 'language_typescript'),
     'tsx': ('tree_sitter_typescript', 'language_tsx'),
@@ -18,13 +19,14 @@ GRAMMARS = {
     'rust': ('tree_sitter_rust', 'language'),
 }
 EXTENSIONS = {
-    '.py': 'python', '.pyi': 'python', '.java': 'java',
+    '.py': 'python', '.pyi': 'python', '.java': 'java', '.kt': 'kotlin', '.kts': 'kotlin',
     '.js': 'javascript', '.mjs': 'javascript', '.cjs': 'javascript', '.jsx': 'javascript',
     '.ts': 'typescript', '.mts': 'typescript', '.cts': 'typescript', '.tsx': 'tsx',
     '.c': 'c', '.h': 'c', '.cc': 'cpp', '.cpp': 'cpp', '.cxx': 'cpp',
     '.hpp': 'cpp', '.hh': 'cpp', '.hxx': 'cpp', '.cs': 'csharp', '.go': 'go', '.rs': 'rust',
 }
 CLASS_NODES = {
+    'kotlin': {'class_declaration', 'object_declaration', 'companion_object'},
     'python': {'class_definition'},
     'java': {'class_declaration', 'interface_declaration', 'enum_declaration', 'record_declaration', 'annotation_type_declaration'},
     'javascript': {'class_declaration', 'class'},
@@ -37,6 +39,7 @@ CLASS_NODES = {
     'rust': {'impl_item', 'trait_item', 'struct_item', 'enum_item'},
 }
 FUNCTION_NODES = {
+    'kotlin': {'function_declaration', 'secondary_constructor'},
     'python': {'function_definition'},
     'java': {'method_declaration', 'constructor_declaration', 'compact_constructor_declaration'},
     'javascript': {'function_declaration', 'function_expression', 'generator_function_declaration', 'generator_function', 'method_definition', 'arrow_function'},

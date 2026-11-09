@@ -17,7 +17,9 @@
 
 安装依赖统一使用根目录 `requirements.txt`。编码器直接使用 Transformers，`local_files_only=True`、`trust_remote_code=False`；不需要 Sentence Transformers、llama-index 或 Flash Attention。
 
-## 四种分块
+## 四种分块基线
+
+AST 分块在项目中作为可复现的语义检索基线，不作为创新点；其历史改进实验与局限见 [实验结果汇总](experiment-summary-20261031.md)。
 
 **动态块**沿用 [原始 BLAZE 参考代码](../references/blaze/processor.py) 的 DP 递推、行号约定和相同代价下的断点选择：普通位置代价 50、类代价 3、函数代价 5、窗口 30 行。先保存原始边界，超出模型预算后再沿语句边界细分。它是原动态算法加长度和前缀适配，不等于完整 BLAZE 复现。
 
@@ -27,7 +29,7 @@
 
 动态和方法路线仅在单条语句仍超长时才使用 token 边界兜底。三路均逐字节保存并核对源码完整覆盖，不调用原脚本的全局字符串替换去注释逻辑。原始参考文件保留在 `references/blaze/`，不作为运行入口。
 
-**BLagent 风格 AST 块**递归拆分超长语法节点、合并相邻节点，显式使用 1500 字符预算，再适配共同的 512-token 输入限制。支持九种语言、十种语法；旧三路在非 Python 文件上也使用对应语言的 AST 提取结构。原三路 Python 实现保持原样，详见 [多语言 AST 切块](blagent-ast.md)。
+**BLagent 风格 AST 块**递归拆分超长语法节点、合并相邻节点，显式使用 1500 字符预算，再适配共同的 512-token 输入限制。支持十种语言、十一种语法；旧三路在非 Python 文件上也使用对应语言的 AST 提取结构。原三路 Python 实现保持原样，详见 [多语言 AST 切块](blagent-ast.md)。
 
 ## 真实结构前缀与报告编码
 
@@ -49,7 +51,7 @@ SWE-bench 仅从 `body` 取报告；固定任务指令也计入 512-token 上限
 
 每块一个 ES 文档，向量字段为 `dense_vector`、`index=false`。`script_score` 精确计算当前快照所有块的 `1 + cosineSimilarity`，通过 scroll 取回全部块分数，再减去偏移 1，按文件计算三种聚合。不会先折叠文件而丢失其他块，也不会只获取全局前 K 个块。这是精确向量检索，当前没有使用 ANN。
 
-先完成文件排名，再取前 10 计算指标。每次独立用 NumPy 核对每个块的余弦相似度及全部三种文件聚合分数，容差 `2e-5`；验证不参与排名。同分按相对路径排序，近似浮点同分的顺序另有核对字段。聚合公式见 [文件聚合说明](file-aggregation.md)，新增路线对比见 [多语言 AST 切块](blagent-ast.md)。
+先完成文件排名，再取前 10 计算指标。每次独立用 NumPy 核对每个块的余弦相似度及全部三种文件聚合分数，容差 `2e-5`；验证不参与排名。同分按相对路径排序，近似浮点同分的顺序另有核对字段。聚合公式见 [文件聚合说明](file-aggregation.md)，AST 基线对比见 [多语言 AST 切块](blagent-ast.md)。
 
 - `cache/embeddings/`：按模型文件 SHA-256、编码实现、库版本、精度和设备生成指纹。SQLite 保存文本向量及校验和，读取时验证维度、有限值及归一化。
 - `cache/chunks/`：按相对路径、源码指纹、模型、分块参数及实现缓存完整分块，核对校验和、源码覆盖、字节边界和预算。不同快照中未变化的文件可以复用。
@@ -63,7 +65,7 @@ ES 启动后，在项目根目录运行：
 .\.venv\Scripts\python.exe -B scripts\retrieval\run_vector_batch.py
 ```
 
-默认使用前 5 条 `psf/requests` 报告，输出动态、方法、固定和 BLagent AST 四条独立路线。配置在 `configs/retrieval/vector.json`，可用 `--limit 1` 做快速检查，或用 `--routes blagent_ast` 只运行新增路线。需要和已有实验逐条对齐时使用 `--selection <selection.json路径>`，不能同时指定数量或仓库过滤。
+默认使用前 5 条 `psf/requests` 报告，输出动态、方法、固定和 BLagent AST 四条独立路线。配置在 `configs/retrieval/vector.json`，可用 `--limit 1` 做快速检查，或用 `--routes blagent_ast` 只运行 AST 基线。需要和已有实验逐条对齐时使用 `--selection <selection.json路径>`，不能同时指定数量或仓库过滤。
 
 每次创建独立的 `results/vector/batches/<run_id>/`：
 

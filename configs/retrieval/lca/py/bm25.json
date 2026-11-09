@@ -1,0 +1,30 @@
+{
+  "endpoint": "http://127.0.0.1:9200",
+  "cluster_name": "bug-localization-local",
+  "dataset": "lca_py_formatted",
+  "split": "test",
+  "repository": "thealgorithms/python",
+  "issue_id": 8543,
+  "query_fields": [
+    "title",
+    "body"
+  ],
+  "extensions": [
+    ".py",
+    ".pyi"
+  ],
+  "exclude_directories": [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "node_modules"
+  ],
+  "max_file_bytes": 2097152,
+  "max_query_terms": 512,
+  "top_k": 10,
+  "bm25": {
+    "k1": 1.2,
+    "b": 0.75
+  },
+  "source_provider": "lca_git"
+}

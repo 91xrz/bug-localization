@@ -18,9 +18,11 @@ from .languages import grammar_versions, language_for_path, parser_for_language,
 from .embeddings import LocalEmbedder, digest
 from .snapshot import get_snapshot, sha256_file
 from .parallel_chunking import create_pool, chunk_documents
+from .ast_local_experiment import LOCAL_ROUTES, LocalRoutingCache
+RoutingChunkCache = LocalRoutingCache
 
 BASELINE_ROUTES = ('dynamic', 'method', 'fixed', 'blagent_ast')
-RETRIEVAL_ROUTES = BASELINE_ROUTES + EXPERIMENTAL_ROUTES + (DEPENDENCY_ROUTE,)
+RETRIEVAL_ROUTES = BASELINE_ROUTES + EXPERIMENTAL_ROUTES + (DEPENDENCY_ROUTE,) + LOCAL_ROUTES
 FUSIONS = {'rrf': ('dynamic', 'method'), 'rrf_three': ('dynamic', 'method', 'fixed')}
 
 
@@ -284,7 +286,7 @@ def evaluate(project, config, base, selected, selection, client, info, embedder,
                                                'tree-sitter': version('tree-sitter'), 'tree-sitter-python': version('tree-sitter-python'),
                                                'grammar_versions': grammar_versions(),
                                                'implementation_sha256': {name: sha256_file(Path(__file__).with_name(name))
-                                                                         for name in ('chunking.py', 'chunk_cache.py', 'parallel_chunking.py', 'ast_chunking.py', 'token_ast.py', 'dependency_context.py', 'languages.py', 'snapshot.py', 'bench4bl.py',
+                                                                         for name in ('chunking.py', 'chunk_cache.py', 'parallel_chunking.py', 'ast_chunking.py', 'token_ast.py', 'dependency_context.py', 'ast_local_experiment.py', 'languages.py', 'snapshot.py', 'bench4bl.py', 'lca.py',
                                                                                       'embeddings.py', 'aggregation.py', 'vector.py')}})
     records = {route: [] for route in routes}
     context = {'run_id': run_id, 'dataset': base['dataset'], 'split': base['split'],
@@ -348,6 +350,8 @@ def evaluate(project, config, base, selected, selection, client, info, embedder,
                                 'model_fingerprint': embedder.fingerprint, **chunk_cache.index_identity(documents, route)}
                     output = retrieve(client, documents, chunks, vectors, query_vector, identity,
                                       config.get('file_aggregation', 'max'), config.get('aggregation_temperature', 0.1))
+                    if 'source_provenance' in manifest:
+                        output['source_provenance'] = manifest['source_provenance']
                     if 'bench4bl_source' in manifest:
                         output['source_provenance'] = manifest['bench4bl_source']
                     scores_path = case / (route + '_chunk_scores.json')
