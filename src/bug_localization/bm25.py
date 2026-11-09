@@ -15,8 +15,10 @@ def validate_config(config):
     missing = required - config.keys()
     if missing:
         raise ValueError('Missing configuration fields: ' + ', '.join(sorted(missing)))
-    if config.get('source_provider') not in (None, 'bench4bl_release'):
+    if config.get('source_provider') not in (None, 'bench4bl_release', 'lca_git'):
         raise ValueError('Unknown source_provider')
+    if isinstance(config['dataset'], str) and config['dataset'].startswith('lca_') and config.get('source_provider') != 'lca_git':
+        raise ValueError('LCA datasets require the offline lca_git source provider')
     for name in ('dataset', 'split'):
         if not isinstance(config[name], str) or not config[name] or config[name] in ('.', '..') or any(c in config[name] for c in '/\\:'):
             raise ValueError(name + ' must be a single local directory name')
@@ -214,6 +216,9 @@ def run(project, config, *, report=None, output_directory=None, verbose=True):
             'scope': 'Single-report end-to-end validation; not a full benchmark evaluation',
             'ground_truth_coverage_complete': not missing_gold,
         }
+        if 'source_provenance' in manifest:
+            output['source_provenance'] = manifest['source_provenance']
+            output['source_provider_implementation_sha256'] = sha256_file(Path(__file__).with_name('lca.py'))
         if 'bench4bl_source' in manifest:
             output['source_provenance'] = manifest['bench4bl_source']
             output['source_provider_implementation_sha256'] = sha256_file(Path(__file__).with_name('bench4bl.py'))

@@ -17,12 +17,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check-data', action='store_true', help='Also validate the three prepared local datasets')
     parser.add_argument('--check-bench4bl', action='store_true', help='Validate the converted Bench4BL corpus and release registry')
+    parser.add_argument('--check-lca', action='store_true', help='Validate all three prepared LCA test datasets and local source registries')
     parser.add_argument('--semantic', action='store_true', help='Also verify embedding dependencies and CUDA computation when available')
     args = parser.parse_args()
     packages = ('datasets', 'pyarrow', 'elasticsearch')
     if args.semantic:
         packages += ('numpy', 'torch', 'transformers', 'tree-sitter', 'tree-sitter-python',
-                     'tree-sitter-java', 'tree-sitter-javascript', 'tree-sitter-typescript',
+                     'tree-sitter-java', 'tree-sitter-kotlin', 'tree-sitter-javascript', 'tree-sitter-typescript',
                      'tree-sitter-c', 'tree-sitter-cpp', 'tree-sitter-c-sharp', 'tree-sitter-go', 'tree-sitter-rust')
     for package in packages:
         module = package.replace('-', '_') if package.startswith('tree-sitter') else package
@@ -73,6 +74,25 @@ def main():
             'rows': len(converted), 'subjects': conversion['subjects'], 'release_sources': len(registry['sources']),
             'protocol': conversion['protocol'], 'source_revision_role': 'release, not per-bug pre-fix',
             'unresolved_gold_labels': sum(converted['unresolved_gold_count'])}
+    if args.check_lca:
+        from datasets import load_from_disk
+        for language in ('java', 'py', 'kt'):
+            name = 'lca_' + language + '_formatted'
+            location = PROJECT / 'datasets' / name
+            data = load_from_disk(str(location))
+            registry = json.loads((location / 'lca_sources.json').read_text())
+            if set(data) != {'test'} or len(data['test']) != 50 or registry['protocol'] != 'lca_base_sha_v1':
+                raise ValueError('Unexpected LCA dataset size/split/protocol: ' + name)
+            for row in data['test']:
+                source = registry['sources'].get(row['repo_name'] + '@' + row['before_fix_sha'])
+                if not source or not (Path(registry['raw_root']) / source['repo_path'] / '.git/objects').is_dir():
+                    raise ValueError('Missing LCA source registration or Git objects')
+                manifest = PROJECT / 'repos/lca' / name / row['repo_name'] / row['before_fix_sha'] / 'snapshot.json'
+                if not manifest.is_file():
+                    raise ValueError('LCA test snapshot not prepared: ' + str(manifest))
+            report['datasets'][name] = {'test_rows': 50, 'registered_commits': len(registry['sources']),
+                                        'protocol': registry['protocol']}
+    report['lca_checked'] = args.check_lca
     data_checks = [('BeetleBox', {'train': 10191, 'test': 8955}),
                                   ('swe_bench_formatted', {'test': 2294}),
                                   ('ye', {'train': 22709})] if args.check_data else []

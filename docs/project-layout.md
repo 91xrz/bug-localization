@@ -1,18 +1,20 @@
 # 项目文件说明
 
-项目根目录保留 README、依赖入口和 Git 忽略规则。代码、配置、说明和参考材料按用途存放；本地数据与运行产物不提交 Git。
+AST 分块是检索基线；历史增强路线和结果仅为复现与对照保留。项目根目录保留 README、依赖入口和 Git 忽略规则。代码、配置、说明和参考材料按用途存放；本地数据与运行产物不提交 Git。
 
 ```text
 configs/
   retrieval/       原有 BM25、语义检索和综合对比配置
-    bench4bl/      Bench4BL的BM25、批次、AST96和综合对比配置
-  experiments/     AST调参与改进、模块2多视角查询的实验配置
+    bench4bl/      Bench4BL 的 BM25、AST96 和综合对比配置
+    lca/           LCA 多语言检索配置
+  experiments/     历史 AST 探索、全量对比和多视角查询配置
   environment/     基础依赖与环境版本记录
   elasticsearch/   ES 发行信息与配置模板
 scripts/
-  datasets/        Bench4BL原始包下载、转换与审计
+  datasets/        Bench4BL 与 LCA 数据准备、审计及快照预取
   retrieval/       检索、融合及功能验证入口
   analysis/        已有实验结果的分析与来源审计
+  experiments/     SWE 全量分批、失败重试与 ES 监督脚本
   llm/             启动用户已安装的本地 GGUF 推理服务
   environment/     环境检查
   elasticsearch/   ES 安装包处理与启停
@@ -34,6 +36,7 @@ Bench4BL的四份检索配置现集中于 `configs/retrieval/bench4bl/`，文件
 | --- | --- |
 | `src/bug_localization/snapshot.py` | 下载指定修复前提交的源码快照，验证并记录文件清单 |
 | `src/bug_localization/bench4bl.py` | Bench4BL作者版本分组、标签路径映射及本地发布源码提供器 |
+| `src/bug_localization/lca.py` | LCA 数据及修复前源码提供器 |
 | `src/bug_localization/bm25.py` | 候选读取、查询处理、BM25 建索引、检索及单样本指标 |
 | `src/bug_localization/batch.py` | 批量样本选择、固定清单、失败记录和指标汇总 |
 | `src/bug_localization/chunking.py` | 动态、方法、固定三种分块，真实结构前缀与 token 限制 |
@@ -45,7 +48,8 @@ Bench4BL的四份检索配置现集中于 `configs/retrieval/bench4bl/`，文件
 | `src/bug_localization/vector.py` | ES 向量检索、文件聚合、独立分数验证及可选融合 |
 | `src/bug_localization/aggregation.py` | 同一份 Chunk 相似度上的 Max、Top-3 Mean、稳定归一化 LogSumExp |
 | `src/bug_localization/comparison.py` | 绑定同一样本清单，对比 BM25 和默认四条语义路线 |
-| `src/bug_localization/token_ast.py` | 独立实验：token 预算 AST 贪心与动态规划分块 |
+| `src/bug_localization/token_ast.py` | 历史实验：token 预算 AST 贪心与动态规划分块 |
+| `src/bug_localization/ast_local_experiment.py` | 历史实验：控制条件、变量、作用域和局部重叠路线 |
 | `src/bug_localization/dependency_context.py` | 独立实验：Python 静态调用与字段上下文、来源记录及缓存 |
 | `src/bug_localization/hybrid.py` | 对齐已有结果，补齐 BM25 排名并进行文件级 RRF |
 | `src/bug_localization/voting.py` | 按路线投票融合及并列排名的期望指标 |
@@ -60,7 +64,9 @@ Bench4BL的四份检索配置现集中于 `configs/retrieval/bench4bl/`，文件
 | `scripts/retrieval/run_bm25_batch.py` | 批量 BM25 入口 |
 | `scripts/retrieval/run_vector_batch.py` | 四种语义切块与三种聚合入口，可显式开启原有融合控制 |
 | `scripts/retrieval/run_retrieval_comparison.py` | BM25 与四种语义切块公平对比入口，关闭融合 |
-| `scripts/retrieval/verify_multilingual_ast.py` | 十种语法的真实模型与 ES 功能验证 |
+| `scripts/retrieval/verify_multilingual_ast.py` | 多语言源码夹具的模型与 ES 功能验证 |
+| `scripts/experiments/run_swe_full.py` | SWE 全量分批、检查点及汇总 |
+| `scripts/experiments/resume_swe_with_retries.py` | 对原始失败样本重试并合并，不挑选更高分 |
 | `scripts/retrieval/fuse_rankings.py` | 已有 BM25 与语义批次的文件级 RRF 入口 |
 | `scripts/retrieval/vote_rankings.py` | 已有排名的按路线投票实验入口 |
 | `scripts/analysis/analyze_chunking_experiment.py` | 配对分块实验的指标、成本与基线一致性分析 |
@@ -84,6 +90,9 @@ Bench4BL的四份检索配置现集中于 `configs/retrieval/bench4bl/`，文件
 | `configs/retrieval/vector.json` | 模型、四种分块、多语言映射、聚合、编码和向量检索配置 |
 | `configs/retrieval/comparison.json` | 当前 44 条 BM25 与四种语义切块对比的配置入口 |
 | `configs/retrieval/bench4bl/*.json` | Bench4BL的BM25、批次、Java AST96和综合对比入口，默认CSV 5条 |
+| `configs/retrieval/lca/` | LCA Java、Python、Kotlin 数据集检索配置 |
+| `configs/experiments/swe_full_semantic.json` | SWE 全量 AST64、动态和控制条件对照 |
+| `configs/experiments/ast_local_experiment.json` | AST 局部上下文与边界的历史对照 |
 | `configs/experiments/bench4bl_multiview.json` | 模块2的Bench4BL配置，复用既有生成模型和查询流程 |
 | `configs/experiments/ast_prefix96_candidate.json` | 原 AST 的96 token前缀候选；不改变默认配置 |
 | `configs/experiments/ast_token_experiment.json` | 原动态块、原 AST 与两种 token AST 对照 |
@@ -100,7 +109,11 @@ Bench4BL的四份检索配置现集中于 `configs/retrieval/bench4bl/`，文件
 - [semantic-retrieval.md](semantic-retrieval.md)：分块、结构前缀、编码、检索、缓存和可选融合。
 - [evaluation.md](evaluation.md)：当前 44 条结果、指标定义、验证与限制。
 - [file-aggregation.md](file-aggregation.md)：三种文件级聚合、参数、九组对比入口和结果。
-- [blagent-ast.md](blagent-ast.md)：新增 AST 路线、多语言配置、对比与功能验证。
+- [blagent-ast.md](blagent-ast.md)：AST 基线、多语言配置、对比与功能验证。
+- [ast-local-experiment.md](ast-local-experiment.md)：局部上下文和边界历史实验。
+- [experiment-summary-20261031.md](experiment-summary-20261031.md)：主要实验结果与限制。
+- [swe-full-semantic-run.md](swe-full-semantic-run.md)：SWE 全量运行和失败重试。
+- [lca.md](lca.md)：LCA 数据、源码和多语言评价口径。
 - [ast-token-experiment.md](ast-token-experiment.md)：token AST 实验方案、结果与限制。
 - [dependency-ast.md](dependency-ast.md)：调用依赖增强的方案、来源审计和44条结果。
 - [hybrid-retrieval.md](hybrid-retrieval.md)：RRF、按路线投票与并列排名评估。

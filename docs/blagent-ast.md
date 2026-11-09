@@ -1,6 +1,6 @@
-# BLagent 风格的多语言 AST 切块
+# BLagent 风格 AST 分块基线
 
-新增路线名为 `blagent_ast`，与 `dynamic`、`method`、`fixed` 一起接入现有语义入口。四路共用本地 Qwen3-Embedding-0.6B、ES 精确余弦检索、64-token 结构前缀、512-token 总输入和 @10 指标。每路仍在同一份完整 Chunk 分数上比较 Max、Top-3 Mean、Normalized LogSumExp（τ=0.1），共 12 组。
+项目将 AST 分块用作可复现的语义检索基线，不将其作为创新点。路线名为 `blagent_ast`，与 `dynamic`、`method`、`fixed` 一起接入现有语义入口。四路共用本地 Qwen3-Embedding-0.6B、ES 精确余弦检索、64-token 结构前缀、512-token 总输入和 @10 指标。每路仍在同一份完整 Chunk 分数上比较 Max、Top-3 Mean、Normalized LogSumExp（τ=0.1），共 12 组。
 
 ## 参考实现与适配范围
 
@@ -16,6 +16,7 @@ AST 路线参考 [CodeSplitter 上游实现](https://github.com/run-llama/llama_
 | --- | --- | --- |
 | Python | `.py`、`.pyi` | tree-sitter-python |
 | Java | `.java` | tree-sitter-java |
+| Kotlin | `.kt`、`.kts` | tree-sitter-kotlin |
 | JavaScript/JSX | `.js`、`.mjs`、`.cjs`、`.jsx` | tree-sitter-javascript |
 | TypeScript | `.ts`、`.mts`、`.cts` | tree-sitter-typescript |
 | TSX | `.tsx` | tree-sitter-typescript |
@@ -47,7 +48,7 @@ AST 路线参考 [CodeSplitter 上游实现](https://github.com/run-llama/llama_
 .\.venv\Scripts\python.exe -B scripts\retrieval\run_vector_batch.py --repository psf/requests --limit 44 --no-fusion
 ```
 
-可用 `--selection <selection.json>` 固定已有 44 条清单；不能与数量/仓库过滤混用。只运行新增路线可使用 `--routes blagent_ast`，字符预算可用 `--ast-max-chars 1500` 明确指定。
+可用 `--selection <selection.json>` 固定已有 44 条清单；不能与数量/仓库过滤混用。只运行 AST 基线可使用 `--routes blagent_ast`，字符预算可用 `--ast-max-chars 1500` 明确指定。
 
 - `results/vector/batches/<run_id>/summary.csv`：四种分块的主聚合指标，默认 Max。
 - `aggregation_summary.csv/json`：全部 12 组指标。
@@ -137,6 +138,6 @@ python -B -u scripts/retrieval/run_vector_batch.py --routes blagent_ast --no-fus
 python -B -u scripts/retrieval/run_vector_batch.py --routes blagent_ast --no-fusion --limit 44 --ast-max-chars 2000
 ```
 
-若需复现前缀 32，复制候选 JSON 并仅将 `prefix_max_tokens` 改为 32。下一步应在预先固定的其他项目验证候选 96，同时保留 64 基线；本轮不追加参数网格。
+若需复现前缀 32，复制候选 JSON 并仅将 `prefix_max_tokens` 改为 32。96 仅作为历史对照配置，不代表优于 64 的结论；本轮不追加参数网格。
 
 实际可影响 AST 的参数包括 `ast_max_chars`、`max_tokens`、`prefix_max_tokens`；总输入上限还会改变查询截断，不能把窗口变长后的效果全部归因于切块。`embedding_batch_size` 主要控制速度/显存，`dynamic_max_lines` 和 `fixed_chunk_tokens` 不控制 AST 切块，Max 聚合不使用 `aggregation_temperature`，这些都不宜当作本轮准确率调参项。

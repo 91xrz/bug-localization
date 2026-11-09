@@ -1,10 +1,16 @@
 # Bug Localization
 
-基于 Elasticsearch 的文件级缺陷定位研究项目：**BM25 + 动态块 / 方法块 / 固定块 / BLagent 风格 AST 块**，使用同一个 Qwen Embedding 模型，无需微调。当前通过 Python CLI 运行，不包含 Web UI、交互启动器或 HTML 报告工具。
+基于 Elasticsearch 的文件级缺陷定位研究项目。使用 BM25 和 Qwen 语义检索对源文件排序，并提供动态块、方法块、固定块和 BLagent 风格 AST 块等分块基线。当前通过 Python CLI 运行，无需微调。
 
-本文复现目标：**SWE-bench 格式化版中 `psf/requests` 的全部 44 条报告，五条检索路线，@10 指标，关闭 RRF**。语义检索还会输出四种分块 × 三种文件聚合的 12 组指标。这不是完整 SWE-bench 或 BLAZE 论文成绩。
+**研究定位：AST 分块用于提供可复现的检索基线，不作为本项目的创新点。** 默认语义配置保留 AST64（1500 字符分块预算、512 总 tokens、64 前缀 tokens）与其他三种分块作为对照；AST96 是既有特定实验配置，不视为已证实的全局最优。局部上下文、依赖拼接和 token/DP 分块只作为历史探索与消融记录保留，不作为已验证的改进方法。
+
+本文的快速复现范围是 **SWE-bench 格式化版中 `psf/requests` 的 44 条报告**，比较 BM25 和四条语义基线，采用 @10 指标并关闭 RRF；这不是完整 SWE-bench 或 BLAZE 论文成绩。另有 12 项目、2,294 条的全量运行记录，见下方结果。
 
 目录导航：常规配置在 `configs/retrieval/`，研究实验配置在 `configs/experiments/`；运行入口在 `scripts/retrieval/`，已有结果的分析脚本在 `scripts/analysis/`。各文件用途见 [项目文件说明](docs/project-layout.md)。近期实验配置和分析脚本已迁移至上述目录，旧命令请使用本文或实验文档中的新路径。
+
+**主要结果：**Requests 44 条中，AST64 的 MAP@10 为 0.6289。SWE 格式化版全量 2,294 条经失败样本重试后，AST64 和控制条件路线均 2,294/2,294 成功，MAP@10 分别为 0.5076 和 0.5077；控制条件相对 AST64 为 13 胜、2,261 平、20 负，未显示稳定收益。动态分块仍有 96 条失败，不能与两条全部成功的路线直接作公平结论。样本重试、标签覆盖和历史对比见 [实验结果汇总](docs/experiment-summary-20261031.md) 与 [全量运行说明](docs/swe-full-semantic-run.md)。
+
+**数据集：**[SWE 格式化版](docs/datasets.md)、[Bench4BL](docs/bench4bl.md) 和 [Long Code Arena](docs/lca.md) 已接入；不同数据集的源码版本与标签口径不同，比较前需核对。
 
 **Bench4BL 已接入 BM25、Java AST96 和模块2。** 本机已转换46个项目、9,459份报告，运行前启动原有ES，然后执行：
 
@@ -22,14 +28,16 @@ python scripts/retrieval/run_retrieval_comparison.py --config configs/retrieval/
 | 路径 | 用途 |
 | --- | --- |
 | `.venv/` | 本服务器 Python 环境 |
-| `datasets/` | SWE-bench、Bench4BL 等数据，不随 Git 上传 |
-| `models/Qwen3-Embedding-0.6B/` | 语义检索模型，本地加载 |
-| `repos/` | 按固定提交保存的源码快照 |
-| `.runtime/elasticsearch/` | Elasticsearch 程序、配置和索引数据 |
-| `cache/` | 分块与向量缓存，删除后需要重新计算 |
-| `results/` | 结果、日志与实验配置记录 |
+| `datasets/` | 机械盘上的 SWE-bench、Bench4BL 等数据，不随 Git 上传 |
+| `models/` | 机械盘上的本地模型，包括 Qwen3-Embedding-0.6B 和 4B |
+| `repos/` | 机械盘上按固定提交保存的源码快照 |
+| `.runtime/elasticsearch/` | SSD 上的 Elasticsearch 程序和配置；活动索引及日志位于机械盘 |
+| `cache/` | 机械盘上的分块与向量缓存，删除后需要重新计算 |
+| `results/` | 指向机械盘 `/data/xrz/bug-localization/results/`，保存结果、日志与实验配置记录 |
 
 2026-10-28 的 44 条实验结果位于 `results/comparison/20261028_182534_372429/`；结果、数据、模型、快照和缓存均被 Git 忽略，需单独备份。
+
+2026-10-31 已将结果、数据集、模型、源码快照和缓存复制并校验到 `/data/xrz/bug-localization/`，项目中的对应目录通过符号链接保持原路径可用。ES 活动索引和日志分别位于该目录的 `elasticsearch/data/` 和 `elasticsearch/logs/`；旧索引单独保存在 `elasticsearch/legacy-data/`。校验后的 SSD 重复副本已清理。`.venv/`、程序与配置仍在 SSD；用户级缓存及系统临时目录也可能占用 SSD。迁移记录见 `/data/xrz/bug-localization/migration/`。
 
 ## 2. 进入环境
 
@@ -144,14 +152,12 @@ curl --fail --max-time 3 http://127.0.0.1:9200
 ss -ltn | grep -E ':(9200|9300)\b' || true
 ES_PATH_CONF="$PWD/.runtime/elasticsearch/config" \
   "$PWD/.runtime/elasticsearch/elasticsearch-9.5.5/bin/elasticsearch" \
-  -d -p "$PWD/.runtime/elasticsearch/elasticsearch.pid" \
-  -Epath.data="$PWD/.runtime/elasticsearch/data" \
-  -Epath.logs="$PWD/results/elasticsearch/server"
+  -d -p "$PWD/.runtime/elasticsearch/elasticsearch.pid"
 curl --fail --retry 30 --retry-connrefused --retry-delay 2 \
   'http://127.0.0.1:9200/_cluster/health?wait_for_status=green&timeout=60s'
 ```
 
-等待响应中的 `status` 为 `green` 且 `timed_out` 为 `false`，再运行实验；仅 HTTP 端口就绪时索引仍可能正在恢复。日志位于 `results/elasticsearch/server/`。当前节点采用本地无认证配置，不要暴露到公网或覆盖共享服务。
+等待响应中的 `status` 为 `green` 且 `timed_out` 为 `false`，再运行实验；仅 HTTP 端口就绪时索引仍可能正在恢复。本机配置文件指定机械盘上的活动数据及日志路径，勿用命令行参数将数据路径覆盖为 `.runtime/elasticsearch/data`，后者链接到历史索引。ES 日志位于 `/data/xrz/bug-localization/elasticsearch/logs/`，监督日志位于 `results/full_semantic/elasticsearch-supervisor.log`。当前节点采用本地无认证配置，不要暴露到公网或覆盖共享服务。
 
 安装包和 SHA512 文件保存在 `.runtime/downloads/`；如果必须重建，先确认现有数据已备份，然后参考 [Elasticsearch 说明](docs/elasticsearch.md) 和本服务器的 Linux 压缩包。不要重复解压覆盖正在使用的安装或数据。多次实验串行运行：当前 CLI 没有并发写入锁。
 
@@ -173,7 +179,7 @@ python -B -m unittest discover -s tests -v
 python -m pip check
 ```
 
-当前测试共 **104 项**；完整依赖安装后应全部通过，注意不要忽略因缺少语法包而出现的 skip。测试不依赖运行中的 ES。环境检查记录写入 `results/environment/verification.json`。
+完整依赖安装后测试应全部通过，注意不要忽略因缺少语法包而出现的 skip。测试不依赖运行中的 ES。环境检查记录写入 `results/environment/verification.json`。
 
 这里只准备 SWE-bench 时，**不要加 `--check-data`**：该开关要求 BeetleBox、SWE-bench、Ye 三份数据同时存在。只复现 44 条结果不需要另外两份数据。
 
@@ -217,7 +223,7 @@ printf '%s\n' "$TASK_EXIT" > "results/reproduction/$TASK_RUN.exit-code.txt"
 
 按 **Ctrl+B，然后 D** 分离会话，之后可断开 SSH；回来用 `tmux attach -t irbl-44`。查看日志可用 `tail -f results/reproduction/<实际时间戳>.log`。退出码应为 0，且结果无失败。tmux 不提供崩溃恢复；强制停止后不能续写原批次，但重新运行会复用有效缓存并创建新的结果目录。
 
-当前批量入口限制 **1–50 条**；这一轮是 44 条复现，不是全数据集长跑。扩大到更多样本需另行调整并验证，不要误把 `--limit 50` 当成全量实验。
+单次批量入口限制 **1–50 条**；本节只复现 Requests 44 条。SWE 格式化版全量使用分批调度器，运行及失败样本处理见 [全量运行说明](docs/swe-full-semantic-run.md)，不能把 `--limit 50` 当成全量实验。
 
 ## 8. 查看结果与验收
 
@@ -301,6 +307,7 @@ python scripts/retrieval/run_vector_batch.py --help
 | `configs/retrieval/bm25_batch.json` | BM25 批次范围，默认 5 条 |
 | `configs/retrieval/vector.json` | 模型、device、batch size、512/64 token 预算、固定块 400、AST 1500 字符、聚合及路线 |
 | `configs/experiments/ast_prefix96_candidate.json` | 原 AST 的轻量调参候选：1500 字符、512/96 tokens、仅 AST、44 条；[对比与限制](docs/blagent-ast.md#轻量参数对比2026-10-25) |
+| `configs/experiments/ast_local_experiment.json` | AST64 控制条件、局部定义、作用域边界和局部重叠实验；[方案与结果](docs/ast-local-experiment.md) |
 | `configs/experiments/ast_dependency_experiment.json` | AST96 与调用依赖增强对照：每块最多2个函数、总输入仍为512 tokens；[方案、复现与44条结果](docs/dependency-ast.md) |
 | `configs/experiments/report_multiview.json` | 模块2：LLM 一次抽取、q0/q1/q2 三视角查询及加权 RRF；[运行流程与限制](docs/report-multiview.md) |
 | `configs/experiments/report_multiview_crossproject.json` | 模块2跨项目复核：Seaborn 22条、Flask 11条、pytest 11条；[固定协议与结果](docs/report-multiview-crossproject.md) |
@@ -312,7 +319,7 @@ python scripts/retrieval/run_vector_batch.py --help
 
 `chunk_prefetch` 为 `true` 时，当前路线完成分块后，后台进程可提前分块同一报告的下一条普通路线，与当前路线的编码及检索重叠；最多提前一条路线。依赖图路线不做预取。设为 `false` 可关闭；单进程和单路线运行不会产生预取。
 
-新增的 token 预算 AST / 动态规划路线是独立实验配置，不改变上述四路默认基线。方案、消融对比及复现命令见 [AST token 实验](docs/ast-token-experiment.md)。
+token 预算 AST、动态规划、局部上下文和依赖拼接为历史探索路线，保留配置与结果以便审计；实验未证明它们可以稳定优于 AST 基线。
 
 已有 BM25 和语义批次后，可用 `scripts/retrieval/fuse_rankings.py --bm25-run BM25_BATCH_DIRECTORY --semantic-run ast96=SEMANTIC_BATCH_DIRECTORY` 做文件级 RRF（运行时在前面加 `python`，并替换实际目录）。它复用已保存的语义排名，从已有 ES 索引补齐 BM25 匹配文件，不重新编码模型。[融合说明与排名结果](docs/hybrid-retrieval.md)记录了本次 @10 结果：Top-10 覆盖提高，但等权融合的 MAP/MRR 低于单独 AST。
 
@@ -336,3 +343,5 @@ python scripts/retrieval/run_vector_batch.py --help
 服务器使用项目 `.venv/bin/python`；在 IDE 中将 Working directory 设置为项目根目录。
 
 更多细节：[数据来源](docs/datasets.md) · [语义检索](docs/semantic-retrieval.md) · [文件聚合](docs/file-aggregation.md) · [多语言 AST](docs/blagent-ast.md) · [文件结构](docs/project-layout.md)。数据、模型、缓存、快照、环境和结果继续由 `.gitignore` 排除，实验结束后单独备份所需结果。
+
+LCA（Long Code Arena）的 Java、Python、Kotlin 测试集接入说明与运行配置见 [LCA 使用说明](docs/lca.md)。
