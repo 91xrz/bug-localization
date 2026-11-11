@@ -1,0 +1,35 @@
+{
+  "semantic_config": "configs/experiments/report_hypothesis_semantic_ast64.json",
+  "repositories": [
+    "astropy/astropy",
+    "django/django",
+    "matplotlib/matplotlib",
+    "pydata/xarray",
+    "pylint-dev/pylint",
+    "pytest-dev/pytest",
+    "scikit-learn/scikit-learn",
+    "sphinx-doc/sphinx",
+    "sympy/sympy"
+  ],
+  "limit": 180,
+  "generation_model": "models/Qwen3-8B",
+  "max_new_tokens": 1024,
+  "max_input_tokens": 16384,
+  "fusion_weights": [
+    0.25
+  ],
+  "rrf_constants": [
+    30
+  ],
+  "scope": "Fixed-parameter cross-project validation on 180 reports; excludes Requests and previous module-2 cases; no tuning on this set",
+  "query_provider": "hypothesis",
+  "fusion_query": "hypothesis_all",
+  "selection_manifest": "configs/experiments/selections/crossproject_180_seed20261110.json",
+  "enrichment_config": "configs/experiments/report_enrichment_crossproject180.json",
+  "selection_max_samples": 180,
+  "query_routes": [
+    "q0",
+    "OB_EB_S2R",
+    "hypothesis_all"
+  ]
+}

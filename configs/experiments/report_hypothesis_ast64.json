@@ -1,0 +1,26 @@
+{
+  "semantic_config": "configs/experiments/report_hypothesis_semantic_ast64.json",
+  "repositories": [
+    "psf/requests"
+  ],
+  "limit": 44,
+  "generation_model": "models/Qwen3-8B",
+  "max_new_tokens": 1024,
+  "max_input_tokens": 12000,
+  "fusion_weights": [
+    0.25,
+    0.5,
+    1.0,
+    2.0
+  ],
+  "rrf_constants": [
+    10,
+    30,
+    60
+  ],
+  "scope": "Requests 44 exploratory set; report-only CosFL-inspired hypotheses, no repository knowledge; not a CosFL reproduction",
+  "query_provider": "hypothesis",
+  "fusion_query": "hypothesis_all",
+  "enrichment_source": "results/report_enrichment/20261109_152957_988093_retrieval",
+  "selection_manifest": "results/report_enrichment/20261109_152957_988093_retrieval/selection.json"
+}

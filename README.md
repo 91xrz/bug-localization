@@ -2,6 +2,8 @@
 
 基于 Elasticsearch 的文件级缺陷定位研究项目。使用 BM25 和 Qwen 语义检索对源文件排序，并提供动态块、方法块、固定块和 BLagent 风格 AST 块等分块基线。当前通过 Python CLI 运行，无需微调。
 
+模块2新增 [OB／EB／S2R 报告增强与 AST64 参数对比](docs/report-enrichment-ast64.md)，独立入口保留原文对照、字段组合消融与融合参数网格。后续 [无仓库知识库的功能推测实验](docs/report-hypothesis-ast64.md) 在补全后生成模块、功能及逻辑描述，再检索 AST64 代码块。[180 条跨项目固定参数验证](docs/report-hypothesis-crossproject180.md) 使用自动化完整流程；[不补全报告的直接功能推测](docs/direct-report-hypothesis.md)及[与原文的融合实验](docs/direct-report-fusion.md)记录去重及排名融合结果。
+
 **研究定位：AST 分块用于提供可复现的检索基线，不作为本项目的创新点。** 默认语义配置保留 AST64（1500 字符分块预算、512 总 tokens、64 前缀 tokens）与其他三种分块作为对照；AST96 是既有特定实验配置，不视为已证实的全局最优。局部上下文、依赖拼接和 token/DP 分块只作为历史探索与消融记录保留，不作为已验证的改进方法。
 
 本文的快速复现范围是 **SWE-bench 格式化版中 `psf/requests` 的 44 条报告**，比较 BM25 和四条语义基线，采用 @10 指标并关闭 RRF；这不是完整 SWE-bench 或 BLAZE 论文成绩。另有 12 项目、2,294 条的全量运行记录，见下方结果。

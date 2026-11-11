@@ -100,9 +100,13 @@ def rrf(rankings, constant=60):
     return [{'rank': i, **item} for i, item in enumerate(scored, 1)]
 
 
-def select_reports(project, config, base):
+def select_reports(project, config, base, *, max_samples=50):
     from datasets import load_from_disk
 
+    if type(max_samples) is not int or not 1 <= max_samples <= 5000:
+        raise ValueError('max_samples must be an integer in [1, 5000]')
+    if max_samples > 50 and not config.get('selection_manifest'):
+        raise ValueError('Large selections require a frozen selection manifest')
     data = load_from_disk(str(project / 'datasets' / base['dataset']))[base['split']]
     metadata_path = project / 'datasets' / base['dataset'] / base['split'] / 'dataset_info.json'
     metadata_hash = sha256_file(metadata_path)
@@ -117,8 +121,8 @@ def select_reports(project, config, base):
             if entry['position'] != position:
                 raise ValueError('Selection positions must be sequential')
             selected.append({'dataset_row': entry['dataset_row'], 'report': data[entry['dataset_row']]})
-        if not 1 <= len(selected) <= 50:
-            raise ValueError('The semantic smoke batch must contain 1-50 samples')
+        if not 1 <= len(selected) <= max_samples:
+            raise ValueError(f'Selection must contain 1-{max_samples} samples')
     else:
         selected = select_samples(data, config['repositories'], config['limit'])
     manifest = []
