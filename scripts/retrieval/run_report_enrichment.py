@@ -9,7 +9,7 @@ PROJECT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT / 'src'))
 from bug_localization.batch import aggregate_results, write_json
 from bug_localization.bm25 import prepare_report, collect_files, ranking_metrics
-from bug_localization.dependency_context import DependencyRoutingCache
+from bug_localization.ast_chunking import RoutingChunkCache
 from bug_localization.embeddings import LocalEmbedder
 from bug_localization.hybrid import ranked_paths
 from bug_localization.report_enrichment import Enricher
@@ -91,7 +91,7 @@ def main():
     records = {}
     try:
         write_json(folder / 'embedding_identity.json', encoder.identity)
-        cache = DependencyRoutingCache(PROJECT, encoder.tokenizer, semantic, encoder.fingerprint)
+        cache = RoutingChunkCache(PROJECT, encoder.tokenizer, semantic, encoder.fingerprint)
         with Elasticsearch(base['endpoint'], request_timeout=120) as client:
             info = client.info()
             if info['cluster_name'] != base['cluster_name'] or not info['version']['number'].startswith('9.'):

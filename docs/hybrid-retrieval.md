@@ -23,7 +23,7 @@
 
 ```bash
 # 使用原 AST 或候选前缀 96 配置生成语义结果
-python -B scripts/retrieval/run_vector_batch.py --config configs/experiments/ast_prefix96_candidate.json
+python -B scripts/retrieval/run_vector_batch.py --config configs/retrieval/ast96.json
 # 下条命令中的两个目录标记需替换为实际日志打印的批次目录
 python -B scripts/retrieval/fuse_rankings.py --bm25-run BM25_BATCH_DIRECTORY --semantic-run ast96=SEMANTIC_BATCH_DIRECTORY
 ```

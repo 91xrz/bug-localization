@@ -12,17 +12,14 @@ import traceback
 from .batch import aggregate_results, select_samples, write_checkpoints, write_json
 from .aggregation import AGGREGATIONS, aggregate_chunk_scores, validate_temperature
 from .bm25 import collect_files, prepare_report, ranking_metrics, validate_config
-from .token_ast import EXPERIMENTAL_ROUTES
-from .dependency_context import DEPENDENCY_ROUTE, DependencyRoutingCache as RoutingChunkCache, validate_dependency_config
+from .ast_chunking import RoutingChunkCache
 from .languages import grammar_versions, language_for_path, parser_for_language, validate_language_config
 from .embeddings import LocalEmbedder, digest
 from .snapshot import get_snapshot, sha256_file
 from .parallel_chunking import create_pool, chunk_documents
-from .ast_local_experiment import LOCAL_ROUTES, LocalRoutingCache
-RoutingChunkCache = LocalRoutingCache
 
 BASELINE_ROUTES = ('dynamic', 'method', 'fixed', 'blagent_ast')
-RETRIEVAL_ROUTES = BASELINE_ROUTES + EXPERIMENTAL_ROUTES + (DEPENDENCY_ROUTE,) + LOCAL_ROUTES
+RETRIEVAL_ROUTES = BASELINE_ROUTES
 FUSIONS = {'rrf': ('dynamic', 'method'), 'rrf_three': ('dynamic', 'method', 'fixed')}
 
 
@@ -46,8 +43,6 @@ def validate_vector_config(config, base):
     validate_config(base)
     active_fusions(config)
     routes = active_routes(config)
-    if DEPENDENCY_ROUTE in routes:
-        validate_dependency_config(config)
     if any(not set(inputs).issubset(routes) for inputs in active_fusions(config).values()):
         raise ValueError('RRF requires all of its input chunking routes')
     if config.get('file_aggregation', 'max') not in AGGREGATIONS:
@@ -290,7 +285,7 @@ def evaluate(project, config, base, selected, selection, client, info, embedder,
                                                'tree-sitter': version('tree-sitter'), 'tree-sitter-python': version('tree-sitter-python'),
                                                'grammar_versions': grammar_versions(),
                                                'implementation_sha256': {name: sha256_file(Path(__file__).with_name(name))
-                                                                         for name in ('chunking.py', 'chunk_cache.py', 'parallel_chunking.py', 'ast_chunking.py', 'token_ast.py', 'dependency_context.py', 'ast_local_experiment.py', 'languages.py', 'snapshot.py', 'bench4bl.py', 'lca.py',
+                                                                         for name in ('chunking.py', 'chunk_cache.py', 'parallel_chunking.py', 'ast_chunking.py', 'languages.py', 'snapshot.py', 'bench4bl.py', 'lca.py',
                                                                                       'embeddings.py', 'aggregation.py', 'vector.py')}})
     records = {route: [] for route in routes}
     context = {'run_id': run_id, 'dataset': base['dataset'], 'split': base['split'],
@@ -325,12 +320,10 @@ def evaluate(project, config, base, selected, selection, client, info, embedder,
             for route_index, route in enumerate(semantic_routes):
                 route_started = time.monotonic()
                 try:
-                    if route == DEPENDENCY_ROUTE:
-                        chunk_cache.prepare(documents)
                     cache_hits_before, cache_misses_before = chunk_cache.hits, chunk_cache.misses
                     chunks, parents = [], []
                     parallel_hits = parallel_misses = 0
-                    if pool is not None and route != DEPENDENCY_ROUTE:
+                    if pool is not None:
                         results = prefetched.pop(route, None)
                         if results is None:
                             results = chunk_documents(pool, documents, route)
@@ -343,8 +336,7 @@ def evaluate(project, config, base, selected, selection, client, info, embedder,
                         parents.extend({'file_path': document['file_path'], **parent} for parent in file_parents)
                     if pool is not None and config.get('chunk_prefetch', False) and route_index + 1 < len(semantic_routes):
                         next_route = semantic_routes[route_index + 1]
-                        if next_route != DEPENDENCY_ROUTE:
-                            prefetched[next_route] = chunk_documents(pool, documents, next_route)
+                        prefetched[next_route] = chunk_documents(pool, documents, next_route)
                     print(f'  {route}: {len(chunks)} chunks / {len(documents)} files', flush=True)
                     write_json(case / (route + '_chunks.json'), {'chunks': chunks, 'original_blocks': parents,
                                                                'source_reconstruction_verified': True})
@@ -381,16 +373,6 @@ def evaluate(project, config, base, selected, selection, client, info, embedder,
                                        'languages': sorted({c['language'] for c in chunks}),
                                        'ast_character_fallback_parents': sum('boundary' in p['kind'] or 'fallback' in p['kind'] or
                                                                             'oversized_leaf' in p['kind'] for p in parents)})
-                    if route == DEPENDENCY_ROUTE:
-                        output['dependency_statistics'] = {
-                            'enriched_chunks': sum(bool(c['dependency_context']) for c in chunks),
-                            'chunks_with_functions': sum(bool(c['dependency_functions']) for c in chunks),
-                            'function_previews': sum(len(c['dependency_functions']) for c in chunks),
-                            'field_previews': sum(len(c['dependency_fields']) for c in chunks),
-                            'maximum_functions_per_chunk': max(len(c['dependency_functions']) for c in chunks),
-                            'maximum_context_tokens': max(c['dependency_context_tokens'] for c in chunks),
-                            'resolved_candidates': sum(c['dependency_resolved_candidates'] for c in chunks),
-                            'unresolved_calls': sum(c['dependency_unresolved_calls'] for c in chunks)}
                     if route == 'fixed':
                         output.update({'fixed_chunk_tokens': config['fixed_chunk_tokens'], 'overlap_tokens': 0,
                                        'maximum_body_tokens': max(c['body_tokens'] for c in chunks),

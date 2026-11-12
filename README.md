@@ -1,16 +1,20 @@
 # Bug Localization
 
-基于 Elasticsearch 的文件级缺陷定位研究项目。使用 BM25 和 Qwen 语义检索对源文件排序，并提供动态块、方法块、固定块和 BLagent 风格 AST 块等分块基线。当前通过 Python CLI 运行，无需微调。
+**当前实验基准（500 条）**：S0 原报告语义检索是无重排主基线，原报告召回＋重排是强对照；L0 BM25 作为传统词面对照。L0/S0/H0 的 MAP@10 分别为 0.331708/0.497061/0.552505。该结果支持本项目调整主基线，不表示 BM25 在其他任务中失去基线价值。见[500 条无重排对比](docs/recall-baselines-500.md)和[500 条重排实验](docs/semantic-reranking-500.md)。
+
+基于 Elasticsearch 的文件级缺陷定位研究项目。以 Qwen 语义检索为主基线，研究功能推测、双路候选与重排；BM25 保留为传统词面检索对照，并提供动态块、方法块、固定块和 BLagent 风格 AST 块等分块对照。当前通过 Python CLI 运行，无需微调。
+
+新增 [Qwen3-Reranker-0.6B 语义检索后重排](docs/semantic-reranking.md)：复用已有语义候选与代码块，对前 50 个文件进行相关性重排，并输出与原排名配对的 @10 指标。默认从 Requests 44 条 AST64 基线开始。
 
 模块2新增 [OB／EB／S2R 报告增强与 AST64 参数对比](docs/report-enrichment-ast64.md)，独立入口保留原文对照、字段组合消融与融合参数网格。后续 [无仓库知识库的功能推测实验](docs/report-hypothesis-ast64.md) 在补全后生成模块、功能及逻辑描述，再检索 AST64 代码块。[180 条跨项目固定参数验证](docs/report-hypothesis-crossproject180.md) 使用自动化完整流程；[不补全报告的直接功能推测](docs/direct-report-hypothesis.md)及[与原文的融合实验](docs/direct-report-fusion.md)记录去重及排名融合结果。
 
-**研究定位：AST 分块用于提供可复现的检索基线，不作为本项目的创新点。** 默认语义配置保留 AST64（1500 字符分块预算、512 总 tokens、64 前缀 tokens）与其他三种分块作为对照；AST96 是既有特定实验配置，不视为已证实的全局最优。局部上下文、依赖拼接和 token/DP 分块只作为历史探索与消融记录保留，不作为已验证的改进方法。
+**研究定位：AST 分块用于提供可复现的检索基线，不作为本项目的创新点。** 默认语义配置保留 AST64（1500 字符分块预算、512 总 tokens、64 前缀 tokens）与其他三种分块作为对照；AST96 是既有特定实验配置，不视为已证实的全局最优。局部上下文、依赖拼接和 token/DP 分块的实验代码已清理，仅保留[切块实验结论](docs/chunking-conclusions.md)。
 
-本文的快速复现范围是 **SWE-bench 格式化版中 `psf/requests` 的 44 条报告**，比较 BM25 和四条语义基线，采用 @10 指标并关闭 RRF；这不是完整 SWE-bench 或 BLAZE 论文成绩。另有 12 项目、2,294 条的全量运行记录，见下方结果。
+本文的快速复现范围是 **SWE-bench 格式化版中 `psf/requests` 的 44 条报告**，比较 BM25 词面对照和四条语义路线，采用 @10 指标并关闭 RRF；这不是完整 SWE-bench 或 BLAZE 论文成绩。另有 12 项目、2,294 条的全量运行记录，见下方结果。
 
 目录导航：常规配置在 `configs/retrieval/`，研究实验配置在 `configs/experiments/`；运行入口在 `scripts/retrieval/`，已有结果的分析脚本在 `scripts/analysis/`。各文件用途见 [项目文件说明](docs/project-layout.md)。近期实验配置和分析脚本已迁移至上述目录，旧命令请使用本文或实验文档中的新路径。
 
-**主要结果：**Requests 44 条中，AST64 的 MAP@10 为 0.6289。SWE 格式化版全量 2,294 条经失败样本重试后，AST64 和控制条件路线均 2,294/2,294 成功，MAP@10 分别为 0.5076 和 0.5077；控制条件相对 AST64 为 13 胜、2,261 平、20 负，未显示稳定收益。动态分块仍有 96 条失败，不能与两条全部成功的路线直接作公平结论。样本重试、标签覆盖和历史对比见 [实验结果汇总](docs/experiment-summary-20261031.md) 与 [全量运行说明](docs/swe-full-semantic-run.md)。
+**主要结果：**Requests 44 条中，AST64 的 MAP@10 为 0.6289。SWE 格式化版全量 2,294 条经失败样本重试后，AST64 和控制条件路线均 2,294/2,294 成功，MAP@10 分别为 0.5076 和 0.5077；控制条件相对 AST64 为 13 胜、2,261 平、20 负，未显示稳定收益。动态分块仍有 96 条失败，不能与两条全部成功的路线直接作公平结论。样本重试、标签覆盖和历史对比见 [实验结果汇总](docs/experiment-summary-20261031.md) 与 [切块实验结论](docs/chunking-conclusions.md)。
 
 **数据集：**[SWE 格式化版](docs/datasets.md)、[Bench4BL](docs/bench4bl.md) 和 [Long Code Arena](docs/lca.md) 已接入；不同数据集的源码版本与标签口径不同，比较前需核对。
 
@@ -225,7 +229,7 @@ printf '%s\n' "$TASK_EXIT" > "results/reproduction/$TASK_RUN.exit-code.txt"
 
 按 **Ctrl+B，然后 D** 分离会话，之后可断开 SSH；回来用 `tmux attach -t irbl-44`。查看日志可用 `tail -f results/reproduction/<实际时间戳>.log`。退出码应为 0，且结果无失败。tmux 不提供崩溃恢复；强制停止后不能续写原批次，但重新运行会复用有效缓存并创建新的结果目录。
 
-单次批量入口限制 **1–50 条**；本节只复现 Requests 44 条。SWE 格式化版全量使用分批调度器，运行及失败样本处理见 [全量运行说明](docs/swe-full-semantic-run.md)，不能把 `--limit 50` 当成全量实验。
+单次批量入口限制 **1–50 条**；本节只复现 Requests 44 条。历史 SWE 全量切块对照的专用调度脚本已移除，最终结果和失败计分口径见 [切块实验结论](docs/chunking-conclusions.md)，不能把 `--limit 50` 当成全量实验。
 
 ## 8. 查看结果与验收
 
@@ -294,7 +298,7 @@ PY
 
 ```bash
 # 仅 BM25
-python scripts/retrieval/run_bm25_batch.py --limit 44 --repository psf/requests
+python scripts/retrieval/run_bm25.py --batch --config configs/retrieval/comparison.json
 # 四路语义，不融合
 python scripts/retrieval/run_vector_batch.py --limit 44 --repository psf/requests --no-fusion
 # 仅 AST；只验证流程时可将 limit 改为 1
@@ -306,22 +310,19 @@ python scripts/retrieval/run_vector_batch.py --help
 | 配置文件 | 主要内容 |
 | --- | --- |
 | `configs/retrieval/bm25.json` | 数据集、split、ES 地址、候选扩展名、BM25 参数及 top_k |
-| `configs/retrieval/bm25_batch.json` | BM25 批次范围，默认 5 条 |
 | `configs/retrieval/vector.json` | 模型、device、batch size、512/64 token 预算、固定块 400、AST 1500 字符、聚合及路线 |
-| `configs/experiments/ast_prefix96_candidate.json` | 原 AST 的轻量调参候选：1500 字符、512/96 tokens、仅 AST、44 条；[对比与限制](docs/blagent-ast.md#轻量参数对比2026-10-25) |
-| `configs/experiments/ast_local_experiment.json` | AST64 控制条件、局部定义、作用域边界和局部重叠实验；[方案与结果](docs/ast-local-experiment.md) |
-| `configs/experiments/ast_dependency_experiment.json` | AST96 与调用依赖增强对照：每块最多2个函数、总输入仍为512 tokens；[方案、复现与44条结果](docs/dependency-ast.md) |
+| `configs/retrieval/ast96.json` | 既有报告多视角实验使用的 AST96 对照：1500 字符、512/96 tokens；[结论与限制](docs/chunking-conclusions.md) |
 | `configs/experiments/report_multiview.json` | 模块2：LLM 一次抽取、q0/q1/q2 三视角查询及加权 RRF；[运行流程与限制](docs/report-multiview.md) |
 | `configs/experiments/report_multiview_crossproject.json` | 模块2跨项目复核：Seaborn 22条、Flask 11条、pytest 11条；[固定协议与结果](docs/report-multiview-crossproject.md) |
 | `configs/retrieval/comparison.json` | 基础/语义配置路径、仓库过滤、44 条、@10 |
 
 `gpu_count` 指定使用前几块可见 CUDA 设备；`embedding_batch_size` 是所有设备合计的批次。只用一块卡时将 `gpu_count` 改为 1；显存不足时降低批次。批次和设备数量纳入向量缓存身份，变化后会重新编码，数值可能存在细微差异。ES 索引和报告处理仍可能让 GPU 等待，利用率不一定始终满载。不要随意修改分块长度、模型精度或评测 K。综合入口没有 `--device` 或 `--routes` 参数，需修改它引用的 vector JSON。使用已有 `selection.json` 时，语义入口支持 `--selection`，不能与 `--limit/--repository` 混用。
 
-`chunk_workers` 设置按文件并行分块的进程数，默认 8；设为 1 使用串行分块。进程数应遵守实验室资源分配，增加进程不一定更快。依赖图路线 `ast_dependency` 仍按文件串行处理，ES 索引和报告顺序不受此设置影响。
+`chunk_workers` 设置按文件并行分块的进程数，默认 8；设为 1 使用串行分块。进程数应遵守实验室资源分配，增加进程不一定更快。ES 索引和报告顺序不受此设置影响。
 
-`chunk_prefetch` 为 `true` 时，当前路线完成分块后，后台进程可提前分块同一报告的下一条普通路线，与当前路线的编码及检索重叠；最多提前一条路线。依赖图路线不做预取。设为 `false` 可关闭；单进程和单路线运行不会产生预取。
+`chunk_prefetch` 为 `true` 时，当前路线完成分块后，后台进程可提前分块同一报告的下一条路线，与当前路线的编码及检索重叠；最多提前一条路线。设为 `false` 可关闭；单进程和单路线运行不会产生预取。
 
-token 预算 AST、动态规划、局部上下文和依赖拼接为历史探索路线，保留配置与结果以便审计；实验未证明它们可以稳定优于 AST 基线。
+token 预算 AST、动态规划、局部上下文和依赖拼接未证明可以稳定优于 AST 基线；专用实现、配置与测试已移除，详见[切块实验结论](docs/chunking-conclusions.md)。
 
 已有 BM25 和语义批次后，可用 `scripts/retrieval/fuse_rankings.py --bm25-run BM25_BATCH_DIRECTORY --semantic-run ast96=SEMANTIC_BATCH_DIRECTORY` 做文件级 RRF（运行时在前面加 `python`，并替换实际目录）。它复用已保存的语义排名，从已有 ES 索引补齐 BM25 匹配文件，不重新编码模型。[融合说明与排名结果](docs/hybrid-retrieval.md)记录了本次 @10 结果：Top-10 覆盖提高，但等权融合的 MAP/MRR 低于单独 AST。
 

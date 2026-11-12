@@ -13,7 +13,7 @@ PROJECT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT / 'src'))
 from bug_localization.batch import aggregate_results, write_json
 from bug_localization.bm25 import collect_files, prepare_report, ranking_metrics
-from bug_localization.dependency_context import DependencyRoutingCache
+from bug_localization.ast_chunking import RoutingChunkCache
 from bug_localization.embeddings import LocalEmbedder, digest
 from bug_localization.hybrid import ranked_paths
 from bug_localization.report_hypothesis import FIELDS, PROMPT, parse_hypothesis
@@ -97,7 +97,7 @@ def main():
     encoder=LocalEmbedder(PROJECT,semantic)
     previous_identity=json.loads((SOURCE/'embedding_identity.json').read_text())
     if encoder.identity != previous_identity: raise ValueError('Embedding identity differs from prior experiment')
-    cache=DependencyRoutingCache(PROJECT,encoder.tokenizer,semantic,encoder.fingerprint)
+    cache=RoutingChunkCache(PROJECT,encoder.tokenizer,semantic,encoder.fingerprint)
     records={n:[] for n in ('original','enriched_hypothesis','direct_hypothesis')}
     try:
         with Elasticsearch(base['endpoint'],request_timeout=120) as client:

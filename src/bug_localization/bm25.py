@@ -143,6 +143,26 @@ def collect_files(source, manifest, config):
     return documents, skipped
 
 
+def analyze_query(client, index, text):
+    """Raise only the analysis safety limit on overflow; preserve query semantics."""
+    from elasticsearch import BadRequestError
+
+    try:
+        return client.indices.analyze(index=index, analyzer='code', text=text)
+    except BadRequestError as error:
+        if 'index.analyze.max_token_count' not in str(error):
+            raise
+    settings = client.indices.get_settings(index=index, flat_settings=True)
+    previous = settings[index]['settings'].get('index.analyze.max_token_count')
+    # Code tokens and preserved identifier parts are bounded by input characters.
+    limit = max(20000, 4 * len(text), int(previous or 10000) * 2)
+    client.indices.put_settings(index=index, settings={'index.analyze.max_token_count': limit})
+    try:
+        return client.indices.analyze(index=index, analyzer='code', text=text)
+    finally:
+        client.indices.put_settings(index=index, settings={'index.analyze.max_token_count': previous})
+
+
 def run(project, config, *, report=None, output_directory=None, verbose=True):
     validate_config(config)
     from elasticsearch import Elasticsearch, helpers
@@ -183,7 +203,7 @@ def run(project, config, *, report=None, output_directory=None, verbose=True):
         count = client.count(index=index)['count']
         if count != len(documents):
             raise ValueError(f'Index is incomplete: {count} documents vs {len(documents)} eligible files')
-        analyzed = client.indices.analyze(index=index, analyzer='code', text=query_text)
+        analyzed = analyze_query(client, index, query_text)
         terms = list(dict.fromkeys(token['token'] for token in analyzed['tokens']))
         selected_terms = terms[:config['max_query_terms']]
         if not selected_terms:

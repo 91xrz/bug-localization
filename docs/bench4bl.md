@@ -31,7 +31,7 @@ python scripts/retrieval/run_retrieval_comparison.py --config configs/retrieval/
 
 ```bash
 python scripts/retrieval/run_bm25.py --config configs/retrieval/bench4bl/bm25.json
-python scripts/retrieval/run_bm25_batch.py --config configs/retrieval/bench4bl/bm25_batch.json
+python scripts/retrieval/run_bm25.py --batch --config configs/retrieval/bench4bl/comparison.json
 python scripts/retrieval/run_vector_batch.py --config configs/retrieval/bench4bl/vector.json
 ```
 

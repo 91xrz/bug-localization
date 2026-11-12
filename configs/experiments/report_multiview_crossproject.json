@@ -1,5 +1,5 @@
 {
-  "semantic_config": "configs/experiments/ast_prefix96_candidate.json",
+  "semantic_config": "configs/retrieval/ast96.json",
   "semantic_route": "blagent_ast",
   "repositories": [
     "mwaskom/seaborn",
