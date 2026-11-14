@@ -7,20 +7,22 @@ configs/
   retrieval/       原有 BM25、语义检索和综合对比配置
     bench4bl/      Bench4BL 的 BM25、AST96 和综合对比配置
     lca/           LCA 多语言检索配置
-  experiments/     报告查询增强、假设生成和多视角查询配置
+  experiments/     报告增强、功能推测、重排、消融及固定样本清单配置
   environment/     基础依赖与环境版本记录
   elasticsearch/   ES 发行信息与配置模板
 scripts/
   datasets/        Bench4BL 与 LCA 数据准备及审计
   retrieval/       检索、融合及功能验证入口
   analysis/        已有实验结果的分析与来源审计
-  experiments/     报告假设实验与 ES 监督脚本
+  figures/         实验图表生成
+  experiments/     功能推测、重排、消融、补充验证及 ES 监督脚本
   llm/             启动用户已安装的本地 GGUF 推理服务
   environment/     环境检查
   elasticsearch/   ES 安装包处理与启停
 src/bug_localization/  可复用算法模块
 tests/                单元测试与多语言源码夹具
 docs/                 原理、操作说明与实验结论
+  figures/            保存的实验图表
 references/           用户提供的原始参考代码
 ```
 
@@ -138,3 +140,24 @@ Bench4BL的三份检索配置集中于 `configs/retrieval/bench4bl/`，文件名
 删除重复的 BM25 批量脚本及 SWE、Bench4BL、LCA 三语言的五份批量包装配置。统一使用 `run_bm25.py --batch --config <comparison.json>` 复用仓库列表和数量；默认 SWE `comparison.json` 是 44 条，旧默认 5 条可用 `run_bm25.py --batch --limit 5`。单报告命令保持可用。
 
 BM25 核心代码、共享评价与候选读取函数、测试、500 条实验入口和所有原始结果保留。清理范围不包含历史结果、参考代码、向量缓存、模型及数据集。
+
+## 近期实验导航（2026-11-14）
+
+先阅读[近期实验汇总](experiment-summary-20261114.md)。以下入口按实验阶段排列，保留已有路径；主指标结果与未完成准备分别记录。
+
+| 工作 | 配置或运行入口 | 结果说明 |
+| --- | --- | --- |
+| 500 条无重排基线 | `configs/experiments/recall_baselines500.json`；`scripts/experiments/run_recall_baselines500.py` | [L0/S0/H0](recall-baselines-500.md) |
+| 500 条重排扩样 | `configs/experiments/hypothesis_reranker500.json`；`scripts/experiments/run_reranker500.py` | [重排结果](semantic-reranking-500.md) |
+| 双路候选对照 | `configs/experiments/mixed_recall_reranker500.json`；`scripts/experiments/run_mixed_recall500.py` | [混合召回](mixed-recall-reranking.md) |
+| 固定候选选块消融 | `configs/experiments/chunk_ablation500.json`；`scripts/experiments/run_chunk_ablation500.py` | [选块实验](chunk-ablation-reranking.md) |
+| C3 补充验证与计时 | `scripts/experiments/run_c3_supplement.py`；`scripts/experiments/benchmark_c3_end_to_end.py` | [补充结果](c3-supplement-results.md) |
+| C3 失效审计 | `scripts/analysis/attribute_c3_failures.py`；`scripts/analysis/report_c3_attribution.py` | [失效归因](c3-failure-attribution-and-next-validation.md) |
+| 离线模块消融汇总 | `scripts/analysis/summarize_module_ablation500.py` | [模块消融](module-ablation-500.md) |
+| 45 条融合诊断 | `configs/experiments/fusion_pilot45.json`；`scripts/analysis/run_fusion_pilot45.py` | [小批融合](fusion-pilot45.md) |
+| 向量缓存与源码预取 | `configs/experiments/embedding_cache_20261113.json`；`scripts/retrieval/warm_embedding_cache.py`；`scripts/datasets/prefetch_embedding_sources.py` | [语义检索说明](semantic-retrieval.md) |
+| 外部基线接入 | `configs/retrieval/blaze.json`；`scripts/retrieval/run_blaze.py` | [接入范围与限制](external-baselines.md) |
+
+`configs/experiments/selections/` 保存冻结样本清单；`configs/retrieval/cache_20261113/` 保存缓存任务配置。运行产物继续保存在被 Git 忽略的 `results/`，不要移动仍被实验引用的结果目录。
+
+本次仅清理 `src/`、`scripts/`、`tests/` 内的可再生成字节码缓存，包括已移除历史模块留下的缓存；保留有效向量缓存、`.runtime/` 运行文件和未提交实验代码。
