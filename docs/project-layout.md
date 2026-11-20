@@ -52,6 +52,12 @@ Bench4BL的三份检索配置集中于 `configs/retrieval/bench4bl/`，文件名
 | `src/bug_localization/hybrid.py` | 对齐已有结果，补齐 BM25 排名并进行文件级 RRF |
 | `src/bug_localization/voting.py` | 按路线投票融合及并列排名的期望指标 |
 | `src/bug_localization/report_views.py`、`multiview.py` | 模块2的报告证据抽取、缓存、加权 RRF 和检索调度 |
+| `src/bug_localization/evidence_reranking.py` | 固定双路候选的故障约束、代码引用和联合重排输出校验 |
+| `scripts/experiments/pilot_c3_evidence.py` | 相同模型、输入与预算下的普通／证据比较重排开发实验 |
+| `scripts/analysis/analyze_c3_evidence_pilot.py` | 独立核对实际请求、原始证据、排名、失败分母及配对统计 |
+| `src/bug_localization/context_evidence.py` | 从修复前同文件源码选择词面窗口或局部结构证据，保持原块与追加预算 |
+| `scripts/experiments/pilot_c3_context.py` | 普通联合重排、词面补充、结构补充三组固定开发实验 |
+| `scripts/analysis/analyze_c3_context_pilot.py` | 独立重放证据选择，核验源码归档、预算、三组排名和配对统计 |
 | `src/bug_localization/__init__.py` | Python 包标识 |
 | `scripts/environment/verify_environment.py` | 环境检查；`--semantic` 检查编码依赖与 CUDA；`--check-data` 检查本地数据 |
 | `scripts/datasets/download_bench4bl.py`、`prepare_bench4bl.py` | 下载51个原始包，以及将46个现代项目转换为统一HF输入 |
@@ -59,6 +65,10 @@ Bench4BL的三份检索配置集中于 `configs/retrieval/bench4bl/`，文件名
 | `scripts/elasticsearch/start_elasticsearch.ps1` | 启动本地 ES |
 | `scripts/elasticsearch/stop_elasticsearch.ps1` | 核实进程归属后停止本地 ES |
 | `scripts/retrieval/run_bm25.py` | BM25 词面对照统一入口；默认单报告，`--batch` 批量 |
+| `scripts/retrieval/run_blaze.py` | BLAZE 发布编码器基线；默认 Requests 3 条 CPU 检查，支持冻结评价清单 |
+| `scripts/retrieval/run_rrl.py` | RRL 作者代理流程的本地 7B 最小测试入口，默认 1 条 |
+| `scripts/datasets/prepare_rrl_environment.py`、`prepare_rrl_model.py` | RRL 隔离依赖、作者源码和 CPU 量化模型准备 |
+| `scripts/datasets/prepare_blaze_model.py` | 校验并准备固定版本的 BLAZE 权重、tokenizer 和 CodeSage 定义 |
 | `scripts/retrieval/run_vector_batch.py` | 四种语义切块与三种聚合入口，可显式开启原有融合控制 |
 | `scripts/retrieval/run_retrieval_comparison.py` | BM25 与四种语义切块公平对比入口，关闭融合 |
 | `scripts/retrieval/verify_multilingual_ast.py` | 多语言源码夹具的模型与 ES 功能验证 |
@@ -92,6 +102,13 @@ Bench4BL的三份检索配置集中于 `configs/retrieval/bench4bl/`，文件名
 ## 文档、参考和测试
 
 - [datasets.md](datasets.md)：本地数据来源、Bench4BL适配范围、字段限制及 BeetleBox 清洗口径。
+- [c3-evidence-pilot.md](c3-evidence-pilot.md)：保留双路检索、固定45条开发样本的故障证据比较重排实验。
+- [c3-context-pilot.md](c3-context-pilot.md)：保留原代码块，在相同追加预算下比较词面与局部结构源码补充。
+- [external-baselines.md](external-baselines.md)：论文的数据集、开源地址、复现难度；实际接入 BLAZE、RRL 和 IGSIL。
+- [external-comparison-500.md](external-comparison-500.md)：500 条上 BLAZE、RRL 适配版与项目方法的指标、配对及分项目对比。
+- [igsil-baseline.md](igsil-baseline.md)：IGSIL 作者文件级流程、7B 适配、Top-5 输出限制及 500 条运行记录。
+- [blaze-baseline.md](blaze-baseline.md)：BLAZE 发布编码器的接入协议、原设置差异、运行命令和实测范围。
+- [rrl-baseline.md](rrl-baseline.md)：RRL 作者流程、小模型适配、运行命令和最小测试记录。
 - [bench4bl.md](bench4bl.md)：Bench4BL适配范围、发布版本口径、源码与标签审计、启动命令。
 - [elasticsearch.md](elasticsearch.md)：手动下载安装包、配置和启停。
 - [semantic-retrieval.md](semantic-retrieval.md)：分块、结构前缀、编码、检索、缓存和可选融合。

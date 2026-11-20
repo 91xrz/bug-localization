@@ -177,3 +177,40 @@ BeetleBox 的原下载器多次出现 HTTP 分块传输中断（`IncompleteRead`
   --output results/embedding_cache/20261113/prefetch_git \
   --resume-from results/embedding_cache/20261113/prefetch_curl
 ```
+
+### 2026-11-15 队列依赖检查修复与续跑
+
+11 月 14 日 23:00，SWE-bench 和 Bench4BL 的两模型任务均已成功完成，队列在切换到 BeetleBox 前停止。
+原因是旧调度器对整个 `src/bug_localization/*.py` 取指纹，新添加的 BLAZE／RRL 模块也触发了
+`Implementation changed since queue start`。原先冻结的文件、数据和配置没有变化。
+
+现在仅固定缓存流程的直接与间接依赖（包含分块子进程和源码提供器）。新增无关实验模块不会中止缓存；
+修改编码、分块、源码处理等实际依赖仍会拒绝继续，并列出变化文件。回归测试覆盖这两种情况。
+
+原始计划、完成检查点和故障证据保留。只对尚未开始的 BeetleBox 四项任务创建续跑计划
+`configs/experiments/embedding_cache_beetlebox_resume_20261115.json`，模型和候选配置沿用原文件，
+向量和分块缓存继续原位复用，不重做已完成的 SWE-bench／Bench4BL。
+当前编码窗口为 `irbl-embedding-cache-20261113:cache-resumed`，编码进度改为
+`results/embedding_cache/20261115_beetlebox/status.json`；源码准备继续在原 `sources` 窗口运行。
+故障差异和原始状态保存在 `results/embedding_cache/20261115_recovery/`。
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1 TOKENIZERS_PARALLELISM=false OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 \
+  .venv/bin/python -u scripts/retrieval/warm_embedding_cache.py queue \
+  --config configs/experiments/embedding_cache_beetlebox_resume_20261115.json \
+  --output results/embedding_cache/20261115_beetlebox
+```
+
+同日晚间核查了 733 个源码准备失败项：732 个已有完整本地 Git 归档，总计约 78 GiB，解压后约
+194 GiB；另一个为网络失败。归档最大约 0.182 GiB，解压最大约 0.491 GiB。4 个 PostHog 归档
+包含合法 POSIX 目录 `:team_id`，被原跨平台路径检查误拒绝。
+
+`scripts/datasets/repair_source_archives.py` 在独立 `source-repair` tmux 窗口补齐这批源码。
+本轮补齐上限为单归档 256 MiB、解压 1 GiB，磁盘保留至少 100 GiB；不改变原正在执行的编码器、
+候选配置或分块流程。检查精确 Git commit 注释、归档根目录、目录穿越、重复成员、大小、CRC 和
+逐文件 SHA256，通过后才发布源码与原接口兼容的快照清单。POSIX 冒号路径原样保留，不适用于
+直接解压到 Windows。只修正源码准备表中仍为失败的对应记录；既有源码和不完整目录不被覆盖。
+容量审计与补齐进度分别在 `results/embedding_cache/20261115_recovery/source_failures_size_audit.json`
+和 `results/embedding_cache/20261115_source_repair/status.json`。新增的失败项不回写本轮审计清单；
+独立 `source-repair-followup` 窗口会在首轮结束后，将新失败保存为独立清单和补齐批次，沿用相同
+容量和完整性检查。已有补齐失败项不无限重试。后续批次进度在同目录的 `followup_status.json`。
