@@ -1,0 +1,21 @@
+{
+  "seed": "20261117-fusion-repair90-v1",
+  "per_project": 10,
+  "exclude_previous_pilot": "results/fusion_pilot/20261114_fixed45/selection.json",
+  "selection_source": "results/module_ablation/20261116_rrf500/selection.json",
+  "methods": {
+    "B": "Hypothesis ranking within fixed C3 pool; preserves B Top-10",
+    "RRF60_equal": "Current fusion: 1/(60+A_rank)+1/(60+B_rank)",
+    "RRF60_B2": "Isolate weight change: 1/(60+A_rank)+2/(60+B_rank)",
+    "RRF10_equal": "Isolate rank smoothing: 1/(10+A_rank)+1/(10+B_rank)",
+    "B_top1_then_RRF60": "Pin hypothesis Top-1, followed by current RRF excluding that file"
+  },
+  "pool": "Same hypothesis Top-40 plus original unique padding to 50; never change candidate pool",
+  "tie_break": "file path ascending",
+  "primary_metrics": ["MAP@10", "MRR@10", "Top-1", "Top-10", "MeanRecall@10"],
+  "comparisons": ["current RRF", "B"],
+  "success_screen": "MAP at least 0.005 higher than both B and current RRF; MRR no lower than current RRF; Top10 hit count no lower than B; positive MAP difference against current RRF in both preassigned halves",
+  "failure_policy": "Keep failures as zero, no replacement or fallback",
+  "evaluation": "One fixed run, no subsequent parameter tuning; report all candidates and win/tie/loss, repair of current losses and harm to current wins",
+  "scope": "Exploratory development-data diagnosis, not independent validation: all 500 were already observed. Exclude old pilot45; per-project sample without labels/outcomes, ten per project, fixed halves of five each. Do not evaluate new rules on all500 or call any GPU model."
+}

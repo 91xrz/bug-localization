@@ -1,0 +1,9 @@
+{
+  "source_run": "results/recall_full/20261118_swe2294_v2",
+  "reranker_config": "configs/retrieval/reranker.json",
+  "model_reference": "results/hypothesis_reranking/20261111_151232_400600_original_query/reranking/effective_config.json",
+  "expected_samples": 2294,
+  "physical_gpu": 0,
+  "minimum_free_mib": 6000,
+  "poll_seconds": 30
+}

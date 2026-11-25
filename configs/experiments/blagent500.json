@@ -1,0 +1,21 @@
+{
+  "base_config": "configs/retrieval/bm25.json",
+  "semantic_config": "configs/retrieval/vector.json",
+  "author_checkout": ".runtime/external-baselines/blagent-code",
+  "selection_manifest": "configs/experiments/selections/crossproject_500_seed20261111.json",
+  "repositories": [],
+  "limit": null,
+  "generation_model": "models/Qwen3-8B",
+  "gpu_max_memory": {
+    "0": "10GiB",
+    "1": "10GiB"
+  },
+  "max_context_tokens": 32768,
+  "max_new_tokens": 2048,
+  "max_calls": 20,
+  "max_agent_iterations": 15,
+  "query_temperature": 0.7,
+  "agent_temperature": 0.5,
+  "ear_temperature": 0.0,
+  "seed": 42
+}

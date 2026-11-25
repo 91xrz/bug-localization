@@ -1,0 +1,21 @@
+{
+  "seed": "20261114-fusion-pilot-v1",
+  "selection": "configs/experiments/selections/crossproject_500_seed20261111.json",
+  "eligible_positions": [181, 500],
+  "per_project": 5,
+  "expected_samples": 45,
+  "primary_metric": "MAP@10",
+  "methods": ["rrf_k60_w1", "rrf_k10_w4", "interleave_hypothesis_first", "minmax_max"],
+  "candidate_scopes": ["full", "c3_pool50"],
+  "primary_comparison": "Each candidate against B on the same 45 reports; A is a second reference",
+  "failure_policy": "Retain sampled failures with zero; no replacement or fallback",
+  "selection_policy": "Per-project seeded sampling of frozen metadata; never inspect rankings or labels to select",
+  "resources": "CPU only, saved rankings only; no model loading, GPU calls, encoding, generation or reranking",
+  "screening_rule": {
+    "delta_MAP_vs_B_at_least": 0.005,
+    "delta_MRR_vs_B_at_least": -0.01,
+    "max_net_Top10_hit_loss_vs_B": 1,
+    "interpretation": "Pilot triage only, not statistical significance or confirmed improvement; do not auto-expand"
+  },
+  "scope_note": "Exploratory subset of previously observed development reports, not an independent test. Fixed choices informed by historical 180-report results. No parameter grid or re-tuning after seeing this pilot. Full/pool comparisons isolate candidate restriction from scoring."
+}

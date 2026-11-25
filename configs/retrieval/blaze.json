@@ -1,0 +1,15 @@
+{
+  "base_config": "configs/retrieval/bm25.json",
+  "model_path": "models/BLAZE-release",
+  "selection_manifest": null,
+  "repositories": ["psf/requests"],
+  "limit": 3,
+  "device": "cpu",
+  "cpu_threads": 4,
+  "embedding_batch_size": 4,
+  "source_max_tokens": 512,
+  "report_max_tokens": 1024,
+  "dense_depth": 1000,
+  "lexical_depth": 1000,
+  "rrf_constant": 60
+}

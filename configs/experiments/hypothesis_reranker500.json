@@ -1,0 +1,11 @@
+{
+  "selection": "configs/experiments/selections/crossproject_500_seed20261111.json",
+  "new_selection": "configs/experiments/selections/crossproject_new320_seed20261111.json",
+  "prior_run": "results/hypothesis_reranking/20261111_151232_400600_original_query",
+  "semantic_reference": "results/report_hypothesis/20261110_023926_805713_retrieval",
+  "generation_config": "configs/experiments/report_hypothesis_crossproject180.json",
+  "reranker_config": "configs/retrieval/reranker.json",
+  "tmux_session": "irbl-hypothesis-reranker-500",
+  "query_policy": "Hypothesis only selects first-stage semantic candidates; both rerankers use the same original report text as the original-report encoder",
+  "delete_only_new_temporary_indexes": true
+}

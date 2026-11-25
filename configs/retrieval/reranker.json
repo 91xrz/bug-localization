@@ -1,0 +1,10 @@
+{
+  "model_path": "models/Qwen3-Reranker-0.6B",
+  "device": "cuda:0",
+  "batch_size": 16,
+  "max_tokens": 1536,
+  "top_n_files": 50,
+  "chunks_per_file": 3,
+  "evaluation_k": 10,
+  "instruction": "Given a bug report, retrieve source code that contains the bug and needs to be modified to fix it."
+}

@@ -1,0 +1,23 @@
+{
+  "dataset": "swe_bench_formatted",
+  "split": "test",
+  "expected_samples": 2294,
+  "evaluation_endpoint": "http://127.0.0.1:19200",
+  "evaluation_cluster": "blaze-repair-local",
+  "semantic_config": "configs/retrieval/cache_20261113/swe_0.6B.json",
+  "cache_run": "results/embedding_cache/20261113/queue/swe_0.6B",
+  "generation_config": "configs/experiments/report_hypothesis_crossproject180.json",
+  "development_selection": "configs/experiments/selections/crossproject_500_seed20261111.json",
+  "gpu_ids": [0, 1],
+  "generation_min_free_mib": 19000,
+  "embedding_min_free_mib": 2500,
+  "poll_seconds": 30,
+  "methods": {
+    "L0": "Original report / file BM25 / no reranker",
+    "S0": "Original report / Qwen3-Embedding-0.6B AST64 Max / no reranker",
+    "H0": "Direct functional hypothesis / same AST64 vectors and Max / no reranker"
+  },
+  "scope": "All local SWE formatted test rows in dataset order; no outcome filtering. Recompute every ranking with one frozen two-GPU embedding identity, including the development 500.",
+  "failure_policy": "Generation input overflow, malformed or unfinished generation, and empty lexical queries count as failures with zero primary metrics. Infrastructure and integrity errors stop the affected worker and remain pending for resume; never substitute a method or remove a report.",
+  "resource_policy": "Do not interrupt existing jobs. BM25 and cached S0 start immediately. Two body-hash generation shards wait for sufficient free memory on their assigned GPUs. H0 retrieval follows generation and S0, using both visible GPUs for cache misses."
+}

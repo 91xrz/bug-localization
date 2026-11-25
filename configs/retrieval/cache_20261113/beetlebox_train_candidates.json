@@ -1,0 +1,51 @@
+{
+  "endpoint": "http://127.0.0.1:9200",
+  "cluster_name": "bug-localization-local",
+  "dataset": "BeetleBox",
+  "split": "train",
+  "repository": "ansible/ansible",
+  "issue_id": 0,
+  "query_fields": [
+    "title",
+    "body"
+  ],
+  "extensions": [
+    ".c",
+    ".cc",
+    ".cjs",
+    ".cpp",
+    ".cs",
+    ".cts",
+    ".cxx",
+    ".go",
+    ".h",
+    ".hh",
+    ".hpp",
+    ".hxx",
+    ".java",
+    ".js",
+    ".jsx",
+    ".kt",
+    ".kts",
+    ".mjs",
+    ".mts",
+    ".py",
+    ".pyi",
+    ".rs",
+    ".ts",
+    ".tsx"
+  ],
+  "exclude_directories": [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "node_modules"
+  ],
+  "max_file_bytes": 2097152,
+  "max_query_terms": 512,
+  "top_k": 10,
+  "bm25": {
+    "k1": 1.2,
+    "b": 0.75
+  }
+}

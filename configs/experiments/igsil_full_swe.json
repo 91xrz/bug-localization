@@ -1,0 +1,11 @@
+{
+  "base_config": "configs/retrieval/bm25.json",
+  "author_checkout": ".runtime/external-baselines/igsil",
+  "selection_manifest": "results/recall_full/20261118_swe2294_v2/selection.json",
+  "repositories": [],
+  "limit": null,
+  "endpoint": "http://127.0.0.1:8098/v1",
+  "model": "igsil-qwen25-coder-7b",
+  "model_file": "models/RRL-Qwen2.5-Coder-7B-GGUF/Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf",
+  "tokenizer_path": "models/Qwen2.5-Coder-7B-Instruct"
+}

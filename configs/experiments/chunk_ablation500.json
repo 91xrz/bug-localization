@@ -1,0 +1,17 @@
+{
+  "selection": "configs/experiments/selections/crossproject_500_seed20261111.json",
+  "control_run": "results/hypothesis_reranking/20261111_153819_040009_500",
+  "candidate_reference": "results/mixed_recall_reranking/20261111_CD_500",
+  "old_semantic": "results/report_hypothesis/20261110_023926_805713_retrieval",
+  "old_hypothesis": "results/direct_report_hypothesis/20261110_113033_098831_retrieval",
+  "reference_reranker": "results/hypothesis_reranking/20261111_151232_400600_original_query/reranking/effective_config.json",
+  "reranker_config": "configs/retrieval/reranker.json",
+  "candidate_policy": "Reuse exact C1 pool: hypothesis Top-40 then original unique padding to 50",
+  "methods": {"C2": "hypothesis", "C3": "mixed"},
+  "mixed_policy": "Original Top-1 first, then scan hypothesis ranking skipping duplicate chunk IDs until min(3, available chunks)",
+  "reranker_query_source": "original_report",
+  "tie_breaker": "original_semantic_rank",
+  "physical_gpus": {"C2": "0", "C3": "1"},
+  "failure_policy": "Keep all 500 reports; failed attempts contribute zero; no fallback",
+  "reference_policy": "C1 reuses audited C results, with original Top-3 chunks"
+}

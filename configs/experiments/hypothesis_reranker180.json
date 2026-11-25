@@ -1,0 +1,10 @@
+{
+  "selection": "configs/experiments/selections/crossproject_180_seed20261110.json",
+  "hypothesis_run": "results/direct_report_hypothesis/20261110_113033_098831_retrieval",
+  "semantic_assets_run": "results/report_hypothesis/20261110_023926_805713_retrieval",
+  "original_reranker_run": "results/reranking/20261111_122256_006356",
+  "reranker_config": "configs/retrieval/reranker.json",
+  "reranker_query_source": "original_report",
+  "query_policy": "Hypothesis is used only for first-stage semantic retrieval; reranker receives the original report only, with the same truncation as the original-report control",
+  "tmux_session": "irbl-hypothesis-original-reranker-180"
+}

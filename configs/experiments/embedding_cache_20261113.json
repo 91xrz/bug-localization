@@ -1,0 +1,45 @@
+{
+  "purpose": "Cache original report queries and all configured source AST chunks, not experimental predictions",
+  "datasets": [
+    "swe_bench_formatted",
+    "bench4bl_formatted",
+    "BeetleBox"
+  ],
+  "scope": "All test rows of SWE/Bench4BL and all test+train rows of BeetleBox; preserve labels and failures",
+  "cuda_visible_devices": "0,1",
+  "min_free_gb": 100,
+  "jobs": [
+    {
+      "id": "swe_0.6B",
+      "config": "configs/retrieval/cache_20261113/swe_0.6B.json"
+    },
+    {
+      "id": "swe_4B",
+      "config": "configs/retrieval/cache_20261113/swe_4B.json"
+    },
+    {
+      "id": "bench4bl_0.6B",
+      "config": "configs/retrieval/cache_20261113/bench4bl_0.6B.json"
+    },
+    {
+      "id": "bench4bl_4B",
+      "config": "configs/retrieval/cache_20261113/bench4bl_4B.json"
+    },
+    {
+      "id": "beetlebox_test_0.6B",
+      "config": "configs/retrieval/cache_20261113/beetlebox_test_0.6B.json"
+    },
+    {
+      "id": "beetlebox_train_0.6B",
+      "config": "configs/retrieval/cache_20261113/beetlebox_train_0.6B.json"
+    },
+    {
+      "id": "beetlebox_test_4B",
+      "config": "configs/retrieval/cache_20261113/beetlebox_test_4B.json"
+    },
+    {
+      "id": "beetlebox_train_4B",
+      "config": "configs/retrieval/cache_20261113/beetlebox_train_4B.json"
+    }
+  ]
+}

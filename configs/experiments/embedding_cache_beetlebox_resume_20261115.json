@@ -1,0 +1,28 @@
+{
+  "purpose": "Cache original report queries and all configured source AST chunks, not experimental predictions",
+  "datasets": [
+    "BeetleBox"
+  ],
+  "scope": "Resume all BeetleBox test and train rows, both frozen embedding models",
+  "cuda_visible_devices": "0,1",
+  "min_free_gb": 100,
+  "jobs": [
+    {
+      "id": "beetlebox_test_0.6B",
+      "config": "configs/retrieval/cache_20261113/beetlebox_test_0.6B.json"
+    },
+    {
+      "id": "beetlebox_train_0.6B",
+      "config": "configs/retrieval/cache_20261113/beetlebox_train_0.6B.json"
+    },
+    {
+      "id": "beetlebox_test_4B",
+      "config": "configs/retrieval/cache_20261113/beetlebox_test_4B.json"
+    },
+    {
+      "id": "beetlebox_train_4B",
+      "config": "configs/retrieval/cache_20261113/beetlebox_train_4B.json"
+    }
+  ],
+  "continuation_of": "results/embedding_cache/20261113/queue/plan.json"
+}

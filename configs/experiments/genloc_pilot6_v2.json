@@ -1,0 +1,31 @@
+{
+  "base_config": "configs/retrieval/bm25.json",
+  "selection_manifest": "configs/experiments/selections/genloc_pilot6_20261120.json",
+  "author_checkout": ".runtime/external-baselines/genloc-code",
+  "generation_model": "models/Qwen3-8B",
+  "inference_endpoint": "http://127.0.0.1:8101",
+  "server_manifest": "results/genloc/setup-20261120/server_manifest.json",
+  "max_context_tokens": 32768,
+  "max_new_tokens": 4096,
+  "max_calls": 9,
+  "temperature": 1.0,
+  "seed": 42,
+  "request_timeout": 600,
+  "embedding": {
+    "model_path": "models/SFR-Embedding-Code-400M_R",
+    "device": "cuda:1",
+    "dtype": "float32",
+    "max_tokens": 8192,
+    "embedding_batch_size": 8
+  },
+  "chunk_tokens": 300,
+  "retrieval_chunk_limit": 300,
+  "candidate_limit": 50,
+  "max_iterations": 9,
+  "iteration_policy": "author_code_zero_based_8_forces_final",
+  "source_policy": "common_python_candidates_including_tests_and_zero_method_files",
+  "retrieval_policy": "exact_cosine_top300_chunks_then_ordered_unique_top50_files",
+  "stop_after_failures": 2,
+  "purpose": "six-project local-model development smoke test; one seeded trial",
+  "final_output_transport": "native-tools-data-example-v2"
+}

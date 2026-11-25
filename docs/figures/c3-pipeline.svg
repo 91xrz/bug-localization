@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2040" height="1440" viewBox="0 0 2040 1440" role="img" aria-labelledby="title desc">
+<title id="title">原报告与功能假设双路语义检索及证据重排流程</title>
+<desc id="desc">当前 C3 方法。两路共享代码向量库，假设前40个文件与原文补足至50个文件，每文件原文第一块与假设补足至三块。原报告重排，文件Max聚合。标签仅用于评价。微调为计划扩展。</desc>
+<defs>
+<marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#2463a4"/></marker>
+<marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#8054aa"/></marker>
+<marker id="arrow-teal" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#167d78"/></marker>
+<marker id="arrow-gray" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#6f7c8a"/></marker>
+</defs><rect width="2040" height="1440" fill="white"/>
+<text x="60" y="66" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="40" font-weight="700" text-anchor="start" fill="#172638">原报告与功能假设的双路语义检索及证据重排</text>
+<text x="60" y="108" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="400" text-anchor="start" fill="#526275">文件级缺陷定位 · 当前 C3 方法的数据流</text>
+<text x="60" y="180" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#172638">01  查询构建</text>
+<path d="M60 201 H500" stroke="#dce3ea" stroke-width="2"/>
+<text x="470" y="180" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#172638">02  共享索引检索</text>
+<path d="M470 201 H910" stroke="#dce3ea" stroke-width="2"/>
+<text x="960" y="180" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#172638">03  候选与证据组合</text>
+<path d="M960 201 H1400" stroke="#dce3ea" stroke-width="2"/>
+<text x="1510" y="180" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#172638">04  重排与评价</text>
+<path d="M1510 201 H1950" stroke="#dce3ea" stroke-width="2"/>
+<rect x="60" y="1040" width="1340" height="190" rx="14" fill="#f6f8fa" stroke="#dbe3eb" stroke-width="2"/>
+<text x="82" y="1078" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="24" font-weight="500" text-anchor="start" fill="#526275">共享代码准备  ·  两路复用同一代码块和向量库</text>
+<path d="M 1180 1115 L 1180 1000 L 435 1000 L 435 430 L 470 430" fill="none" stroke="white" stroke-width="7.5" stroke-linejoin="round"/>
+<path d="M 1180 1115 L 1180 1000 L 435 1000 L 435 430 L 470 430" fill="none" stroke="#6f7c8a" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow-gray)" stroke-dasharray="8 7"/>
+<path d="M 435 1000 L 435 910 L 470 910" fill="none" stroke="white" stroke-width="7.5" stroke-linejoin="round"/>
+<path d="M 435 1000 L 435 910 L 470 910" fill="none" stroke="#6f7c8a" stroke-width="2.5" stroke-linejoin="round" marker-end="url(#arrow-gray)" stroke-dasharray="8 7"/>
+<path d="M 360 370 L 470 370" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 360 370 L 470 370" fill="none" stroke="#2463a4" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<path d="M 210 430 L 210 590" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 210 430 L 210 590" fill="none" stroke="#8054aa" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-purple)"/>
+<text x="228" y="520" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#8054aa">仅报告输入</text>
+<path d="M 210 710 L 210 790" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 210 710 L 210 790" fill="none" stroke="#8054aa" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-purple)"/>
+<path d="M 360 855 L 470 855" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 360 855 L 470 855" fill="none" stroke="#8054aa" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-purple)"/>
+<path d="M 830 370 L 900 370 L 900 490 L 960 490" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 830 370 L 900 370 L 900 490 L 960 490" fill="none" stroke="#2463a4" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<path d="M 830 855 L 900 855 L 900 550 L 960 550" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 830 855 L 900 855 L 900 550 L 960 550" fill="none" stroke="#8054aa" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-purple)"/>
+<path d="M 1180 595 L 1180 700" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 1180 595 L 1180 700" fill="none" stroke="#167d78" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+<text x="1200" y="637" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#167d78">候选文件</text>
+<text x="1200" y="667" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#167d78">＋两路块级分数</text>
+<path d="M 1400 790 L 1450 790 L 1450 555 L 1510 555" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 1400 790 L 1450 790 L 1450 555 L 1510 555" fill="none" stroke="#167d78" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+<path d="M 1745 630 L 1745 700" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 1745 630 L 1745 700" fill="none" stroke="#167d78" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+<text x="1765" y="660" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#167d78">每块相关性得分</text>
+<path d="M 1745 800 L 1745 865" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 1745 800 L 1745 865" fill="none" stroke="#167d78" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+<path d="M 1745 965 L 1745 1070" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 1745 965 L 1745 1070" fill="none" stroke="#167d78" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-teal)"/>
+<text x="1765" y="1020" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#167d78">前 k 个文件</text>
+<path d="M 1400 1310 L 1450 1310 L 1450 1135 L 1510 1135" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 1400 1310 L 1450 1310 L 1450 1135 L 1510 1135" fill="none" stroke="#6f7c8a" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-gray)" stroke-dasharray="8 7"/>
+<path d="M 210 310 L 210 250 L 1745 250 L 1745 440" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 210 310 L 210 250 L 1745 250 L 1745 440" fill="none" stroke="#2463a4" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<text x="1040" y="235" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="500" text-anchor="middle" fill="#2463a4">重排 Query：原报告（沿用既有截断）</text>
+<rect x="60" y="310" width="300" height="120" rx="14" fill="#f1f7fd" stroke="#2463a4" stroke-width="2"/>
+<text x="82" y="350" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#2463a4">原始缺陷报告 r</text>
+<text x="82" y="387" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">保留报告中的直接线索</text>
+<rect x="60" y="590" width="300" height="120" rx="14" fill="#f8f4fc" stroke="#8054aa" stroke-width="2"/>
+<text x="82" y="630" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#8054aa">功能假设生成</text>
+<text x="82" y="667" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">Qwen3-8B</text>
+<text x="82" y="697" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">不读取源码或修复标签</text>
+<rect x="60" y="790" width="300" height="130" rx="14" fill="#f8f4fc" stroke="#8054aa" stroke-width="2"/>
+<text x="82" y="830" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#8054aa">功能假设 h</text>
+<text x="82" y="867" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">context · functionality</text>
+<text x="82" y="897" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">logic</text>
+<rect x="470" y="310" width="360" height="155" rx="14" fill="#f1f7fd" stroke="#2463a4" stroke-width="2"/>
+<text x="492" y="350" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#2463a4">原报告语义检索</text>
+<text x="492" y="387" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">Qwen3-Embedding-0.6B</text>
+<text x="492" y="417" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">块级相似度 → 文件 Max</text>
+<text x="492" y="447" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">输出文件排名与块级分数</text>
+<rect x="470" y="790" width="360" height="155" rx="14" fill="#f8f4fc" stroke="#8054aa" stroke-width="2"/>
+<text x="492" y="830" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#8054aa">功能假设语义检索</text>
+<text x="492" y="867" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">同一编码器与代码向量库</text>
+<text x="492" y="897" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">块级相似度 → 文件 Max</text>
+<text x="492" y="927" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">输出文件排名与块级分数</text>
+<rect x="960" y="440" width="440" height="155" rx="14" fill="#f0f9f7" stroke="#167d78" stroke-width="2"/>
+<text x="982" y="480" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#167d78">固定预算候选合并</text>
+<text x="982" y="517" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">功能假设 Top-40 优先</text>
+<text x="982" y="547" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">原报告排名去重补足至 50</text>
+<text x="982" y="577" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">保留两路块级分数供后续选块</text>
+<rect x="960" y="700" width="440" height="180" rx="14" fill="#f0f9f7" stroke="#167d78" stroke-width="2"/>
+<text x="982" y="740" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#167d78">C3 双视角代码证据选择</text>
+<text x="982" y="777" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">对每个候选文件：</text>
+<text x="982" y="807" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">① 保留原报告 Top-1 代码块</text>
+<text x="982" y="837" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">② 按功能假设排名去重补足</text>
+<text x="982" y="867" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">每文件最多 3 个不同代码块</text>
+<rect x="1510" y="440" width="470" height="190" rx="14" fill="#f0f9f7" stroke="#167d78" stroke-width="2"/>
+<text x="1532" y="480" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#167d78">原报告与代码块相关性重排</text>
+<text x="1532" y="517" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">Qwen3-Reranker-0.6B</text>
+<text x="1532" y="547" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">Query = 原报告；Document = 代码块</text>
+<text x="1532" y="577" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">块得分 = logit(yes) − logit(no)</text>
+<text x="1532" y="607" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">功能假设文本不直接进入重排器</text>
+<rect x="1510" y="700" width="470" height="100" rx="14" fill="#fff" stroke="#167d78" stroke-width="2"/>
+<text x="1532" y="740" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#167d78">文件级得分聚合</text>
+<text x="1532" y="777" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">文件得分 = 所选代码块得分的 Max</text>
+<rect x="1510" y="865" width="470" height="100" rx="14" fill="#fff" stroke="#167d78" stroke-width="2"/>
+<text x="1532" y="905" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#167d78">输出候选文件排名</text>
+<text x="1532" y="942" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">得分降序；同分按原报告语义排名</text>
+<rect x="1510" y="1070" width="470" height="130" rx="14" fill="#f6f8fa" stroke="#6f7c8a" stroke-width="2"/>
+<text x="1532" y="1110" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#6f7c8a">文件级定位评价</text>
+<text x="1532" y="1147" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">MAP@10 · MRR@10 · Top-1/5/10</text>
+<text x="1532" y="1177" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">MeanRecall@10；失败按零计入</text>
+<rect x="1130" y="1270" width="270" height="80" rx="14" fill="#f6f8fa" stroke="#6f7c8a" stroke-width="2"/>
+<text x="1152" y="1310" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#6f7c8a">修复文件标签</text>
+<text x="1265" y="1384" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="500" text-anchor="middle" fill="#6f7c8a">仅用于评价</text>
+<rect x="85" y="1105" width="280" height="100" rx="14" fill="#fff" stroke="#6f7c8a" stroke-width="2"/>
+<text x="107" y="1145" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#6f7c8a">修复前源码快照</text>
+<text x="107" y="1182" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">候选源码文件</text>
+<rect x="440" y="1105" width="330" height="100" rx="14" fill="#fff" stroke="#6f7c8a" stroke-width="2"/>
+<text x="462" y="1145" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#6f7c8a">AST 分块与结构前缀</text>
+<text x="462" y="1182" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">AST64 · 1500 字符初始预算</text>
+<rect x="845" y="1105" width="525" height="100" rx="14" fill="#fff" stroke="#6f7c8a" stroke-width="2"/>
+<text x="867" y="1145" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="27" font-weight="700" text-anchor="start" fill="#6f7c8a">代码编码与共享向量库</text>
+<text x="867" y="1182" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">Qwen3-Embedding-0.6B · 代码向量可复用</text>
+<path d="M 365 1155 L 440 1155" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 365 1155 L 440 1155" fill="none" stroke="#6f7c8a" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-gray)"/>
+<path d="M 770 1155 L 845 1155" fill="none" stroke="white" stroke-width="8" stroke-linejoin="round"/>
+<path d="M 770 1155 L 845 1155" fill="none" stroke="#6f7c8a" stroke-width="3" stroke-linejoin="round" marker-end="url(#arrow-gray)"/>
+<rect x="1510" y="1260" width="470" height="100" rx="14" fill="#fafafa" stroke="#a2aab4" stroke-width="2" stroke-dasharray="9 7"/>
+<text x="1532" y="1298" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="25" font-weight="600" text-anchor="start" fill="#526275">计划扩展：重排器任务微调</text>
+<text x="1532" y="1333" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="21" font-weight="400" text-anchor="start" fill="#526275">仅更新模型权重，不属于当前推理步骤</text>
+<text x="60" y="1295" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="23" font-weight="400" text-anchor="start" fill="#526275">实线：处理流程    灰色虚线：共享代码索引或评价标签</text>
+<text x="60" y="1335" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="22" font-weight="400" text-anchor="start" fill="#526275">候选或代码块不足时保留全部；生成与检索失败按既定协议记录。</text>
+<text x="60" y="1395" font-family="Noto Sans CJK SC, Microsoft YaHei, sans-serif" font-size="20" font-weight="400" text-anchor="start" fill="#526275">C3  /  原报告 + 功能假设双路语义检索</text>
+</svg>

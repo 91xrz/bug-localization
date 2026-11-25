@@ -1,0 +1,15 @@
+{
+  "base_config": "configs/retrieval/blaze_full_base.json",
+  "model_path": "models/BLAZE-release",
+  "selection_manifest": "results/recall_full/20261118_swe2294_v2/selection.json",
+  "repositories": [],
+  "limit": null,
+  "device": "cuda:0",
+  "cpu_threads": 4,
+  "embedding_batch_size": 4,
+  "source_max_tokens": 512,
+  "report_max_tokens": 1024,
+  "dense_depth": 1000,
+  "lexical_depth": 1000,
+  "rrf_constant": 60
+}
