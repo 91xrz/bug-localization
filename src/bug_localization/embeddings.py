@@ -7,6 +7,7 @@ from pathlib import Path
 import sqlite3
 
 from .snapshot import sha256_file
+from .model_files import encoder_implementation_sha256, required_model_files
 
 
 def digest(value):
@@ -20,7 +21,7 @@ class LocalEmbedder:
 
         self.config = config
         self.path = (project / config['model_path']).resolve()
-        required = ['model.safetensors', 'config.json', 'tokenizer.json', 'tokenizer_config.json']
+        required = required_model_files(self.path)
         hashes = {name: sha256_file(self.path / name) for name in required}
         self.device = config['device']
         self.gpu_count = config.get('gpu_count', 1) if self.device == 'cuda' else 0
@@ -44,7 +45,7 @@ class LocalEmbedder:
                          'gpu_count': self.gpu_count, 'embedding_batch_size': config['embedding_batch_size'],
                          'max_tokens': config['max_tokens'],
                          'torch': version('torch'), 'transformers': version('transformers'),
-                         'encoder_sha256': sha256_file(Path(__file__)),
+                         'encoder_sha256': encoder_implementation_sha256(Path(__file__)),
                          'gpu': [torch.cuda.get_device_name(i) for i in range(self.gpu_count)]}
         self.fingerprint = digest(self.identity)
         folder = project / 'cache/embeddings' / self.fingerprint

@@ -1,5 +1,7 @@
 # BM25 与 AST 的文件级 RRF 融合
 
+本页为历史 BM25＋AST 融合与投票对照，不是项目当前主线。当前方法为 [A+B+C](main-method.md)，其中 A/B 均为语义检索，C 为代码证据重排。
+
 当前实验复用已完成的 BM25 与 AST 结果，以文件名次计算等权 RRF：
 
 `S(f) = 1 / (60 + BM25文件名次) + 1 / (60 + AST文件名次)`
@@ -23,7 +25,7 @@
 
 ```bash
 # 使用原 AST 或候选前缀 96 配置生成语义结果
-python -B scripts/retrieval/run_vector_batch.py --config configs/experiments/ast_prefix96_candidate.json
+python -B scripts/retrieval/run_vector_batch.py --config configs/retrieval/ast96.json
 # 下条命令中的两个目录标记需替换为实际日志打印的批次目录
 python -B scripts/retrieval/fuse_rankings.py --bm25-run BM25_BATCH_DIRECTORY --semantic-run ast96=SEMANTIC_BATCH_DIRECTORY
 ```

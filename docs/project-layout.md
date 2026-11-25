@@ -1,152 +1,87 @@
 # 项目文件说明
 
-AST 分块是检索基线；历史增强路线和结果仅为复现与对照保留。项目根目录保留 README、依赖入口和 Git 忽略规则。代码、配置、说明和参考材料按用途存放；本地数据与运行产物不提交 Git。
+项目主线是 [A+B+C 文件级缺陷定位](main-method.md)：原报告语义检索、功能推测语义检索、候选合并与结构初排、代码证据重排。BM25、旧词面/语义融合与切块实验作为对照保留。全部文档见[文档索引](README.md)。
+
+## 目录约定
 
 ```text
 configs/
-  retrieval/       原有 BM25、语义检索和综合对比配置
-    bench4bl/      Bench4BL 的 BM25、AST96 和综合对比配置
-    lca/           LCA 多语言检索配置
-  experiments/     历史 AST 探索、全量对比和多视角查询配置
-  environment/     基础依赖与环境版本记录
-  elasticsearch/   ES 发行信息与配置模板
+  baselines/       已登记的 A+B 初排定义与校验和
+  retrieval/       语义检索、BM25 及外部对照的配置
+    bench4bl/      Bench4BL 检索配置
+    lca/           LCA 多语言配置
+    ghrb/          GHRB 检索配置
+  experiments/     功能推测、C 重排、消融与验证配置
+    selections/    冻结样本清单
+  environment/     依赖与环境版本记录
+  elasticsearch/   ES 发行信息和配置模板
 scripts/
-  datasets/        Bench4BL 与 LCA 数据准备、审计及快照预取
-  retrieval/       检索、融合及功能验证入口
-  analysis/        已有实验结果的分析与来源审计
-  experiments/     SWE 全量分批、失败重试与 ES 监督脚本
-  llm/             启动用户已安装的本地 GGUF 推理服务
+  retrieval/       检索、固定初排重放与外部基线入口
+  experiments/     A/B/C 实验调度、重排、训练与扩展验证
+  analysis/        已有结果分析、独立审计与统计
+  datasets/        数据准备、源码预取及模型准备
+  figures/         实验图表生成
+  llm/             本地模型服务启动
   environment/     环境检查
-  elasticsearch/   ES 安装包处理与启停
-src/bug_localization/  可复用算法模块
-tests/                单元测试与多语言源码夹具
-docs/                 原理、操作说明与实验结论
-references/           用户提供的原始参考代码
+  elasticsearch/   ES 安装与启停
+src/bug_localization/  可复用方法与数据处理模块
+tests/                单元测试与多语言夹具
+docs/                 方法、操作指南和实验记录
+  figures/            供文档引用的图表
+references/           原始参考代码及来源说明
 ```
 
-常规对比从 `scripts/retrieval/run_retrieval_comparison.py` 启动；单独语义实验使用 `run_vector_batch.py --config configs/experiments/<配置名>.json`。所有命令从项目根目录运行，JSON 内的数据与模型路径也继续相对于项目根目录。无需在各个子目录间切换。
+所有命令从项目根目录执行，JSON 中相对路径也相对于项目根目录。实验脚本通常依赖指定的本地资产与冻结结果，先阅读对应协议再执行。
 
-2026-10-26整理时，三份 `ast_*.json` 实验配置从 `configs/retrieval/` 移至 `configs/experiments/`，两个 `analyze_*_experiment.py` 从 `scripts/retrieval/` 移至 `scripts/analysis/`。历史结果中的配置路径作为运行记录保留；重新运行时请使用新路径。常用检索入口、默认配置、算法模块及缓存位置均未改动。
+## 主线代码与入口
 
-Bench4BL的四份检索配置现集中于 `configs/retrieval/bench4bl/`，文件名为 `bm25.json`、`bm25_batch.json`、`vector.json`、`comparison.json`。旧的 `bench4bl_*.json` 路径已迁移，模块2配置和文档引用已同步更新。
+| 模块 | 主要文件 | 作用 |
+| --- | --- | --- |
+| A：语义检索 | `embeddings.py`、`vector.py`；`scripts/retrieval/run_vector_batch.py` | 编码、向量缓存、代码块检索与文件聚合 |
+| B：功能推测 | `report_hypothesis.py`；`scripts/experiments/run_direct_hypothesis.py` | 从报告生成功能描述并检索 |
+| A+B：原结构初排 | `lightweight_hypothesis.py`；`scripts/retrieval/run_current_baseline.py` | 冻结 `ab_structure_v1` 的结构分数、候选合并与重放 |
+| 多语言结构 | `structural_matching.py`；`scripts/retrieval/run_structural_matching.py` | `structure_ast_v2` 的声明抽取与结构匹配 |
+| C：基础重排 | `mixed_recall.py`、`reranking.py` | 双路选块与本地 Reranker 评分 |
+| C：联合证据 | `evidence_packets.py`、`conservative_reranking.py` | 文件联合证据构建与排序修正工具；完整主线由下述实验入口固定 |
+| 新候选配对 Max C | `scripts/experiments/run_ab_structure_c500.py` | 新旧候选共享相同查询—代码块对分数 |
+| 完整 A+B+C | `scripts/experiments/run_ab_structure_newc500.py` | 新候选、逐块/联合评分与初排分数组合；只调整 C 前十 |
+| 系数验证 | `coefficient_search.py`；`scripts/experiments/run_multidata_coefficients.py` | 按项目冻结开发/验证划分，多语言评分与系数组合比较 |
+| 独立核验 | `scripts/analysis/audit_multidata_coefficients.py` | 校验评分来源、重建排名与指标，检查敏感性分析 |
 
-## 代码与入口
+表中未带目录的模块均位于 `src/bug_localization/`。阶段关系与输入要求见[运行与复现](main-method.md#运行与复现)。
 
-| 文件 | 职责 |
+## 公共基础设施与对照
+
+| 文件/入口 | 作用 |
 | --- | --- |
-| `src/bug_localization/snapshot.py` | 下载指定修复前提交的源码快照，验证并记录文件清单 |
-| `src/bug_localization/bench4bl.py` | Bench4BL作者版本分组、标签路径映射及本地发布源码提供器 |
-| `src/bug_localization/lca.py` | LCA 数据及修复前源码提供器 |
-| `src/bug_localization/bm25.py` | 候选读取、查询处理、BM25 建索引、检索及单样本指标 |
-| `src/bug_localization/batch.py` | 批量样本选择、固定清单、失败记录和指标汇总 |
-| `src/bug_localization/chunking.py` | 动态、方法、固定三种分块，真实结构前缀与 token 限制 |
-| `src/bug_localization/ast_chunking.py` | BLagent 风格递归 AST 切块、多语言适配及独立缓存，保留旧 Python 三路行为 |
-| `src/bug_localization/languages.py` | 语言扩展名、真实语法节点、解析器及版本注册 |
-| `src/bug_localization/chunk_cache.py` | 按源码、参数和实现指纹复用并校验分块 |
-| `src/bug_localization/parallel_chunking.py` | 普通分块路线按文件多进程处理，并保持输入顺序 |
-| `src/bug_localization/embeddings.py` | 本地模型编码、池化、归一化及 SQLite 向量缓存 |
-| `src/bug_localization/vector.py` | ES 向量检索、文件聚合、独立分数验证及可选融合 |
-| `src/bug_localization/aggregation.py` | 同一份 Chunk 相似度上的 Max、Top-3 Mean、稳定归一化 LogSumExp |
-| `src/bug_localization/comparison.py` | 绑定同一样本清单，对比 BM25 和默认四条语义路线 |
-| `src/bug_localization/token_ast.py` | 历史实验：token 预算 AST 贪心与动态规划分块 |
-| `src/bug_localization/ast_local_experiment.py` | 历史实验：控制条件、变量、作用域和局部重叠路线 |
-| `src/bug_localization/dependency_context.py` | 独立实验：Python 静态调用与字段上下文、来源记录及缓存 |
-| `src/bug_localization/hybrid.py` | 对齐已有结果，补齐 BM25 排名并进行文件级 RRF |
-| `src/bug_localization/voting.py` | 按路线投票融合及并列排名的期望指标 |
-| `src/bug_localization/report_views.py`、`multiview.py` | 模块2的报告证据抽取、缓存、加权 RRF 和检索调度 |
-| `src/bug_localization/__init__.py` | Python 包标识 |
-| `scripts/environment/verify_environment.py` | 环境检查；`--semantic` 检查编码依赖与 CUDA；`--check-data` 检查本地数据 |
-| `scripts/datasets/download_bench4bl.py`、`prepare_bench4bl.py` | 下载51个原始包，以及将46个现代项目转换为统一HF输入 |
-| `scripts/elasticsearch/setup_elasticsearch.py` | 校验并解压用户下载的 ES ZIP，生成本地配置 |
-| `scripts/elasticsearch/start_elasticsearch.ps1` | 启动本地 ES |
-| `scripts/elasticsearch/stop_elasticsearch.ps1` | 核实进程归属后停止本地 ES |
-| `scripts/retrieval/run_bm25.py` | 单报告 BM25 入口 |
-| `scripts/retrieval/run_bm25_batch.py` | 批量 BM25 入口 |
-| `scripts/retrieval/run_vector_batch.py` | 四种语义切块与三种聚合入口，可显式开启原有融合控制 |
-| `scripts/retrieval/run_retrieval_comparison.py` | BM25 与四种语义切块公平对比入口，关闭融合 |
-| `scripts/retrieval/verify_multilingual_ast.py` | 多语言源码夹具的模型与 ES 功能验证 |
-| `scripts/experiments/run_swe_full.py` | SWE 全量分批、检查点及汇总 |
-| `scripts/experiments/resume_swe_with_retries.py` | 对原始失败样本重试并合并，不挑选更高分 |
-| `scripts/retrieval/fuse_rankings.py` | 已有 BM25 与语义批次的文件级 RRF 入口 |
-| `scripts/retrieval/vote_rankings.py` | 已有排名的按路线投票实验入口 |
-| `scripts/analysis/analyze_chunking_experiment.py` | 配对分块实验的指标、成本与基线一致性分析 |
-| `scripts/analysis/analyze_dependency_experiment.py` | 调用依赖实验的源码来源、预算和配对指标审计 |
-| `scripts/retrieval/run_multiview.py` | 先准备多视角查询，再运行现有 BM25/AST 检索 |
-| `scripts/analysis/analyze_multiview.py` | 查询证据、融合和历史 q0 对照审计 |
-| `scripts/analysis/analyze_query_complementarity.py` | 已有查询排名的补救/损失、真实文件覆盖与事后选择上限 |
-| `scripts/llm/serve_report_llm.py` | 启动已安装的 llama.cpp，支持 Windows 和 Ubuntu |
+| `snapshot.py`、`bench4bl.py`、`lca.py` | 修复前源码、数据适配和标签映射 |
+| `batch.py`、`bm25.py`、`paired_statistics.py` | 样本选择、共享指标、失败计分与配对统计；`bm25.py` 同时提供词面对照 |
+| `chunking.py`、`ast_chunking.py`、`languages.py` | 基础分块、多语言解析与结构前缀 |
+| `chunk_cache.py`、`parallel_chunking.py` | 分块缓存校验和并行处理 |
+| `scripts/retrieval/run_bm25.py --batch` | 统一 BM25 批次入口 |
+| `scripts/retrieval/run_retrieval_comparison.py` | 历史 BM25＋四种语义切块基础对照，不是完整 A+B+C 入口 |
+| `scripts/retrieval/fuse_rankings.py`、`vote_rankings.py` | 历史词面/语义 RRF 与投票融合对照 |
+| `scripts/retrieval/run_blaze.py`、`run_rrl.py`、`run_igsil.py`、`run_blagent.py` | 外部方法本地适配；设置差异见[外部基线](external-baselines.md) |
+| `scripts/environment/verify_environment.py` | 依赖、CUDA、数据与环境检查 |
 
-## 配置与依赖
+## 配置与复现记录
 
-| 文件 | 用途 |
+- [requirements.txt](../requirements.txt)：完整环境直接依赖，引用 `configs/environment/requirements-base.txt`。
+- `configs/environment/requirements.lock.txt`：原 Windows 环境记录，不是当前服务器的完整锁文件。
+- [current.json](../configs/baselines/current.json)：只登记 A+B 初排，不能据此将主线描述为只有 A+B。
+- [ab_structure_newc500.json](../configs/experiments/ab_structure_newc500.json)：完整 500 条 A+B+C 组合的来源与 C 参数。
+- `configs/experiments/selections/`：固定样本身份与顺序，用于配对评价。
+- [方法定义](main-method.md)：当前流程与各实现版本的成绩边界。
+- [历史操作指南](reproduction-requests44.md)：本地服务、模型哈希和基础检索验收。
+
+## 本地资产
+
+| 目录 | 内容 |
 | --- | --- |
-| `requirements.txt` | 当前完整环境的直接依赖，包含 CUDA 12.8 版 PyTorch |
-| `configs/environment/requirements-base.txt` | 仅数据检查和 BM25 所需的直接依赖，被完整依赖入口引用 |
-| `configs/environment/requirements.lock.txt` | 原 Windows 环境的安装版本记录；服务器运行记录保存在 `results/reproduction/` |
-| `configs/elasticsearch/distribution.json` | ES 发行版本、官方 ZIP 地址和 SHA512 |
-| `configs/elasticsearch/elasticsearch.yml` | 本地 ES 配置模板 |
-| `configs/retrieval/bm25.json` | 单条 BM25、候选文件与查询规则 |
-| `configs/retrieval/bm25_batch.json` | 默认 BM25 批次、样本范围和 @10 评测 |
-| `configs/retrieval/vector.json` | 模型、四种分块、多语言映射、聚合、编码和向量检索配置 |
-| `configs/retrieval/comparison.json` | 当前 44 条 BM25 与四种语义切块对比的配置入口 |
-| `configs/retrieval/bench4bl/*.json` | Bench4BL的BM25、批次、Java AST96和综合对比入口，默认CSV 5条 |
-| `configs/retrieval/lca/` | LCA Java、Python、Kotlin 数据集检索配置 |
-| `configs/experiments/swe_full_semantic.json` | SWE 全量 AST64、动态和控制条件对照 |
-| `configs/experiments/ast_local_experiment.json` | AST 局部上下文与边界的历史对照 |
-| `configs/experiments/bench4bl_multiview.json` | 模块2的Bench4BL配置，复用既有生成模型和查询流程 |
-| `configs/experiments/ast_prefix96_candidate.json` | 原 AST 的96 token前缀候选；不改变默认配置 |
-| `configs/experiments/ast_token_experiment.json` | 原动态块、原 AST 与两种 token AST 对照 |
-| `configs/experiments/ast_dependency_experiment.json` | 原 AST96 与最多2个函数的依赖增强对照 |
-| `configs/experiments/report_multiview.json` | 模块2：生成模型身份、三视角与固定权重 |
-| `configs/experiments/report_multiview_crossproject.json` | 同一模块的新44条跨项目样本，固定原参数 |
-| `.gitignore` | 排除数据、模型、源码快照、缓存、结果、环境和 IDE 设置 |
+| `datasets/`、`repos/` | 数据集与修复前源码快照 |
+| `models/` | Embedding、Reranker 与生成模型权重 |
+| `cache/` | 可复用分块、向量与生成缓存 |
+| `results/` | 实验输入、逐例排名、指标、审计、日志与运行时协议 |
+| `.venv/`、`.runtime/` | 本机环境、推理服务和 ES 运行文件 |
 
-## 文档、参考和测试
-
-- [datasets.md](datasets.md)：本地数据来源、Bench4BL适配范围、字段限制及 BeetleBox 清洗口径。
-- [bench4bl.md](bench4bl.md)：Bench4BL适配范围、发布版本口径、源码与标签审计、启动命令。
-- [elasticsearch.md](elasticsearch.md)：手动下载安装包、配置和启停。
-- [semantic-retrieval.md](semantic-retrieval.md)：分块、结构前缀、编码、检索、缓存和可选融合。
-- [evaluation.md](evaluation.md)：当前 44 条结果、指标定义、验证与限制。
-- [file-aggregation.md](file-aggregation.md)：三种文件级聚合、参数、九组对比入口和结果。
-- [blagent-ast.md](blagent-ast.md)：AST 基线、多语言配置、对比与功能验证。
-- [ast-local-experiment.md](ast-local-experiment.md)：局部上下文和边界历史实验。
-- [experiment-summary-20261031.md](experiment-summary-20261031.md)：主要实验结果与限制。
-- [swe-full-semantic-run.md](swe-full-semantic-run.md)：SWE 全量运行和失败重试。
-- [lca.md](lca.md)：LCA 数据、源码和多语言评价口径。
-- [ast-token-experiment.md](ast-token-experiment.md)：token AST 实验方案、结果与限制。
-- [dependency-ast.md](dependency-ast.md)：调用依赖增强的方案、来源审计和44条结果。
-- [hybrid-retrieval.md](hybrid-retrieval.md)：RRF、按路线投票与并列排名评估。
-- [report-multiview.md](report-multiview.md)：模块2、本地生成模型、两阶段运行及证据校验。
-- `references/blaze/processor.py`、`convert_to_chunks.py`：用户提供的 BLAZE 原始代码，原样保存供核对，不是运行入口；同目录 README 记录来源与校验值。
-- `tests/test_bm25_inputs.py`、`test_bm25_metrics.py`、`test_bm25_batch.py`：词法输入、指标和批次规则测试。
-- `tests/test_vector.py`：分块、前缀、缓存、编码输入及融合规则测试，包括对原始动态算法的核对。
-- `tests/test_comparison.py`：对比的清单绑定、候选与查询一致性、指标汇总测试。
-- `tests/test_aggregation.py`：聚合公式、归一化、数值稳定性、完整分数清单与九组汇总测试。
-- `references/blagent/`：用户提供的原始包装代码及校验记录；仅作参考，不执行 Chroma 流程。
-- `tests/test_ast_chunking.py`、`tests/fixtures/multilingual/`：真实语法解析、四路多语言分块及缓存测试。
-- `tests/test_token_ast.py`、`test_dependency_context.py`：实验切块的预算、源码保留、依赖解析与缓存隔离。
-- `tests/test_bench4bl.py`：精确发布版本、离线源码、原仓库HEAD保持不变、篡改检测与缺失gold保留。
-- `tests/test_hybrid.py`、`test_voting.py`：结果配对、融合、投票与并列指标规则。
-
-## 仅保存在本机的目录
-
-| 目录 | 用途与清理原则 |
-| --- | --- |
-| `datasets/` | 原有数据、Bench4BL原始包和适配数据，保留 |
-| `models/` | Qwen3-Embedding-0.6B、BlazeModel 等本地模型，保留 |
-| `repos/` | 按修复前提交固定的源码快照，后续实验继续复用 |
-| `cache/chunks/`、`cache/embeddings/` | 有效分块及向量缓存；删除会导致重复计算 |
-| `results/comparison/` | 当前 44 条对比的汇总与固定清单 |
-| `results/bm25/`、`results/vector/` | 当前对比依赖的原始结果；与汇总一起保留 |
-| `results/hybrid/`、`results/voting/` | 融合结果、候选排名及来源记录 |
-| `results/multiview/`、`cache/report_queries/` | 模块2查询、证据、指标和可复用的生成响应 |
-| `.runtime/llama/`、`results/llm/` | 用户提供的本机推理程序、进程记录与服务日志 |
-| `results/reproduction/`、`results/cpu-benchmark/`、`results/gpu-smoke/` | 本服务器运行日志、环境记录和性能测量 |
-| `results/environment/` | 最近一次环境验证记录 |
-| `results/elasticsearch/` | 安装记录及服务日志 |
-| `.venv/` | 已安装的 Python 环境 |
-| `.runtime/` | ES 程序、生成配置与索引数据 |
-| `.idea/` | 本机 PyCharm 工程设置 |
-
-数据、模型、实验结果、源码快照、有效缓存及参考代码均需保留；这些本地资产不随 Git 上传，应单独备份。Python 字节码可以重新生成。提交仓库时检查 `git status`，无需强制添加被忽略的本地文件。
+这些目录由 `.gitignore` 排除，需单独准备和备份。文档指向它们的链接仅在资产齐备的本地环境可用。`references/` 内被 Git 跟踪的参考代码和 `docs/figures/` 文档图表随仓库保留。

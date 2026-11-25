@@ -1,0 +1,23 @@
+{
+  "source_run": "results/recall_full/20261118_swe2294_v2",
+  "output": "results/b_lightweight/20261122_v1",
+  "development_rows_source": "source selection.development_rows (500)",
+  "validation": "remaining1794, previously observed corpus, not an independent blind test",
+  "source_policy": "Original report body and before-fix Python definitions only. No PR title, patch, future history, or labels in features.",
+  "resource_policy": "CPU only. Reuse saved S0/H0 rankings and generated hypothesis. Zero generation, embedding or reranker calls.",
+  "alphas": [0.0, 0.25, 0.5],
+  "anchor_weights": [0.0, 0.1, 0.25, 0.5],
+  "normalization": "Per route clip((score-score_at_50)/(score_at_1-score_at_50), 0, 1). Zero if constant; tie by B rank, A rank, path.",
+  "candidate_scope": "A50 union B50; each deployable variant returns at most50. Anchor-only alpha0 also restricted to B50 for ablation.",
+  "anchor": "Exact case-sensitive report identifier matches against definitions in before-fix source; document IDF inside shared A50 union B50; normalized weighted coverage. Explicit relative path/dotted module match gives anchor1. Strip HTML comments and URLs. Exclude Python keywords/builtins and generic dunder identifiers.",
+  "selection": "Choose highest development MAP@10 among variants with gain>=0.005 vs B, MRR/Hit10/Hit50>=B. Ties choose smaller alpha then smaller anchor weight then method name. If none, keep B. Freeze choice before validation evaluation.",
+  "failure_policy": "Preserve H0 failure as zero for every B-dependent route; no fallback. A independent. Infrastructure errors stop; no skipped rows.",
+  "primary_metrics": ["MAP@10", "MRR@10", "Hit@10", "Hit@50", "MeanRecall@50"],
+  "inference": "5000 paired project-stratified bootstrap and paired randomization repetitions, seed20261122, Holm for selected-vs-B MAP/Hit10/Hit50 validation tests",
+  "references": [
+    "https://users.ece.utexas.edu/~perry/work/papers/1311-RS-ase.pdf",
+    "https://arxiv.org/abs/1808.00594",
+    "https://arxiv.org/abs/2210.11934",
+    "https://arxiv.org/abs/2411.17230"
+  ]
+}

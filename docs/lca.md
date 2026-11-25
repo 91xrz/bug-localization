@@ -42,4 +42,4 @@ python scripts/retrieval/run_retrieval_comparison.py --config configs/retrieval/
 python scripts/retrieval/run_retrieval_comparison.py --config configs/retrieval/lca/kt/comparison.json
 ```
 
-也可使用同目录的 `bm25_batch.json` 或 `vector.json` 分别运行现有批量入口，或加 `--limit 1` 进行单条检查。主配置默认保留标题和正文，关闭融合，评价 @10。不得将单条功能检查的指标当作完整基准结果。
+单独运行词面对照时使用 `python scripts/retrieval/run_bm25.py --batch --config configs/retrieval/lca/py/comparison.json`（Java/Kotlin 替换语言目录），复用同一份 50 条范围配置。语义批次使用同目录的 `vector.json`；批量入口可加 `--limit 1` 进行功能检查。主配置默认保留标题和正文，关闭融合，评价 @10。不得将单条功能检查的指标当作完整基准结果。

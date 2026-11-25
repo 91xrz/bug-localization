@@ -1,0 +1,20 @@
+{
+  "selection": "configs/experiments/selections/crossproject_500_seed20261111.json",
+  "baseline_registry": "configs/baselines/current.json",
+  "baseline_run": "results/baselines/20261122_ab_structure_v1",
+  "recall_run": "results/recall_full/20261118_swe2294_v2",
+  "old_c_run": "results/reranking_full/20261119_swe2294_gpu0",
+  "reranker_config": "configs/retrieval/reranker.json",
+  "output": "results/ab_structure_c/20261123_fixed500",
+  "gpu_ids": [0, 1],
+  "minimum_free_mib": 6000,
+  "query": "Original report exactly as used by old C (saved S0 embedding query without instruction; existing 512-token query budget)",
+  "evidence": "Per candidate: A best chunk, then B highest distinct chunks up to3; identical to old C",
+  "scoring": "Fresh Qwen3-Reranker-0.6B on the union of both pools' selected chunks; each identical query-document pair scored once and shared by both arms. No reuse of historical model scores.",
+  "batch_order": "Old C chunk order followed by newly introduced chunks in new AB order; batch16, BF16, max1536 tokens",
+  "aggregation": "Max chunk score per file; tie by each arm's own AB rank",
+  "failure_policy": "Retain all500; existing B failure counts zero in all dependent routes; infrastructure or integrity errors stop and resume from immutable checkpoints",
+  "contrasts": ["new_ABC_vs_old_ABC", "new_ABC_vs_new_AB"],
+  "statistics": "5000 project-stratified paired bootstrap and paired randomization repetitions; Holm over two contrasts times MAP/MRR/Top1/Top10/Recall10",
+  "scope": "Same observed development500, not blind evaluation. No retuning AB or C. Current initial baseline remains frozen."
+}

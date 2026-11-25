@@ -1,0 +1,62 @@
+{
+  "dataset_metadata_sha256": "439cbd4e577f0ccab3eb4aa9f46882d93595c212b76ab8fe29b940b3abddab5e",
+  "selection_rule": "First original dataset row for each of six predeclared projects; selection uses repository and dataset order only, no outcome filtering; development smoke test, not an independent test set",
+  "source_selection_sha256": "59d45872c142bbf250a95c9b4fb2ecbdcdd53ac6dca865e5ce05f8c33d52e539",
+  "samples": [
+    {
+      "position": 1,
+      "dataset_row": 1162,
+      "repository": "psf/requests",
+      "issue_id": 1142,
+      "before_fix_sha": "22623bd8c265b78b161542663ee980738441c307",
+      "query_sha256": "2d1ce010019294ab7c420c71b3d81436f3464aaf66926f97257da359496d09a2",
+      "labels_sha256": "e47d0b415c226af97865e712e1768e3749d22222dcf0701f8ed7b63e998608c5"
+    },
+    {
+      "position": 2,
+      "dataset_row": 1151,
+      "repository": "pallets/flask",
+      "issue_id": 4045,
+      "before_fix_sha": "d8c37f43724cd9fb0870f77877b7c4c7e38a19e0",
+      "query_sha256": "eddd09ba1afa81144081c355bf117873672ce28817bdd8b6a5593bb82f6fa097",
+      "labels_sha256": "5a787e6ad5fc3e73c32ca3890495f185a9811d81d5532222a145e91bd25f2dda"
+    },
+    {
+      "position": 3,
+      "dataset_row": 1316,
+      "repository": "pylint-dev/pylint",
+      "issue_id": 4175,
+      "before_fix_sha": "ae6cbd1062c0a8e68d32a5cdc67c993da26d0f4a",
+      "query_sha256": "7e5f6580f3176cf1e994cfd9d96dcc8ed7fb2c601a169735167b7f4f3dcb60b6",
+      "labels_sha256": "50fcf69423ec3c5c40b441e2699782711c6f278a537f4b4fb88074b2293143f9"
+    },
+    {
+      "position": 4,
+      "dataset_row": 1373,
+      "repository": "pytest-dev/pytest",
+      "issue_id": 10051,
+      "before_fix_sha": "aa55975c7d3f6c9f6d7f68accc41bb7cadf0eb9a",
+      "query_sha256": "339092d79de1e2af40fcbc4494bbadf79e56daa0ac4defdffadb52bf1a873ae8",
+      "labels_sha256": "6f7ea0b4d6e945321f02426e5c5b1a414d6742c8a75d69317ca67ac6db5d13e6"
+    },
+    {
+      "position": 5,
+      "dataset_row": 95,
+      "repository": "django/django",
+      "issue_id": 10087,
+      "before_fix_sha": "02cd16a7a04529c726e5bb5a13d5979119f25c7d",
+      "query_sha256": "a60343f9bdb03bafe34f2cbe785a5965c64f55981e1f04b577a7028492431bd1",
+      "labels_sha256": "a5f4b2ff2e01e35ab039084b75fcbc018a75e71bfaf51034e11b3d16580c2d5d"
+    },
+    {
+      "position": 6,
+      "dataset_row": 1721,
+      "repository": "sphinx-doc/sphinx",
+      "issue_id": 10021,
+      "before_fix_sha": "8ddf3f09c62e2a4651458759fcc97e751ca63063",
+      "query_sha256": "87e819993d478780ac2c1de4e05879982e556061bdedb468ccf9954e8d75bf57",
+      "labels_sha256": "c687bfb915eb2b7dab1b7ffdd724540a3e4cac26ed6d0568da74391f0206ad55"
+    }
+  ],
+  "selection_sha256": "1693728e6764a4d411928ee098d214499d2ac37185105671dacc54a84cacb0c6"
+}

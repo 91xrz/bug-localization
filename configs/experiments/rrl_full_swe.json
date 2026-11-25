@@ -1,0 +1,17 @@
+{
+  "base_config": "configs/retrieval/bm25.json",
+  "author_checkout": ".runtime/external-baselines/rrl",
+  "dependency_path": ".runtime/rrl-deps",
+  "selection_manifest": "results/recall_full/20261118_swe2294_v2/selection.json",
+  "repositories": [],
+  "limit": null,
+  "endpoint": "http://127.0.0.1:8097/v1",
+  "model": "rrl-local-7b",
+  "model_file": "models/RRL-Qwen2.5-Coder-7B-GGUF/Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf",
+  "tokenizer_path": "models/Qwen2.5-Coder-7B-Instruct",
+  "context_tokens": 16384,
+  "max_output_tokens": 1024,
+  "max_calls": 24,
+  "timeout_seconds": 600,
+  "runtime_variant": "RRL author agent + Qwen2.5-Coder-7B-Instruct Q4_K_M / CUDA GPU 1"
+}

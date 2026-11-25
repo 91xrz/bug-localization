@@ -7,7 +7,7 @@ import time
 
 from .batch import aggregate_results, write_checkpoints, write_json
 from .bm25 import prepare_report, collect_files, ranking_metrics, run as run_bm25
-from .dependency_context import DependencyRoutingCache
+from .ast_chunking import RoutingChunkCache
 from .embeddings import LocalEmbedder, digest
 from .hybrid import full_lexical_ranking, ranked_paths
 from .report_views import QueryGenerator, report_input, weighted_rrf
@@ -93,7 +93,7 @@ def run_multiview(project, config):
                 raise ValueError('Unexpected Elasticsearch cluster')
             embedder = LocalEmbedder(project, semantic)
             write_json(folder / 'embedding_identity.json', embedder.identity)
-            cache = DependencyRoutingCache(project, embedder.tokenizer, semantic, embedder.fingerprint)
+            cache = RoutingChunkCache(project, embedder.tokenizer, semantic, embedder.fingerprint)
             for position, (sample, generated) in enumerate(zip(selected, queries), 1):
                 row = sample['report']
                 record = {k: selection['samples'][position - 1][k] for k in

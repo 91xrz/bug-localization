@@ -1,0 +1,14 @@
+{
+  "selection": "configs/experiments/selections/crossproject_500_seed20261111.json",
+  "control_run": "results/hypothesis_reranking/20261111_153819_040009_500",
+  "old_semantic": "results/report_hypothesis/20261110_023926_805713_retrieval",
+  "old_hypothesis": "results/direct_report_hypothesis/20261110_113033_098831_retrieval",
+  "reference_reranker": "results/hypothesis_reranking/20261111_151232_400600_original_query/reranking/effective_config.json",
+  "reranker_config": "configs/retrieval/reranker.json",
+  "methods": {
+    "L0": "Original report / file BM25 / no reranker",
+    "S0": "Original report / Qwen3-Embedding-0.6B AST64 Max / no reranker",
+    "H0": "Direct functional hypothesis / Qwen3-Embedding-0.6B AST64 Max / no reranker"
+  },
+  "failure_policy": "Retain all 500 reports; existing H0 failure contributes zero. Infrastructure errors stop the run and can be resumed."
+}

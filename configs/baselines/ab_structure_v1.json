@@ -1,0 +1,89 @@
+{
+  "id": "ab_structure_v1",
+  "display_name": "分数融合＋结构匹配",
+  "status": "current",
+  "adopted_on": "2026-11-22",
+  "authorization": "User explicitly requested adopting the validated combination as baseline.",
+  "scope": "initial_ranking_and_candidate_recall; C reranking integration not evaluated",
+  "method": "score_a0.5_e0.5",
+  "alpha": 0.5,
+  "anchor_weight": 0.5,
+  "top_n_files": 50,
+  "candidate_pool": "union(original_top50, hypothesis_top50), score all, retain top50",
+  "score": "0.5 * N(original) + 0.5 * N(hypothesis) + 0.5 * E",
+  "normalization": "clip((score-score_at_min(50,n))/(score_at_1-score_at_min(50,n)),0,1); all equal =>0",
+  "anchor_policy": "Frozen lightweight_hypothesis.anchors; original body, before-fix definitions, shared union IDF, path/module match",
+  "tie_break": [
+    "hypothesis_rank",
+    "original_rank",
+    "file_path"
+  ],
+  "failure_policy": "Either dependency fails => zero, retain report; no fallback; infrastructure errors stop",
+  "inference_policy": "No parameter search; reuse existing generation/retrieval; CPU-only postprocessing",
+  "reference_study": "results/b_lightweight/20261122_v1",
+  "reference_output": "results/baselines/20261122_ab_structure_v1",
+  "reference_samples": 2294,
+  "reference_successful": 2293,
+  "reference_failed": 1,
+  "reference_metrics": {
+    "all2294": {
+      "MAP@10": 0.6218544108215408,
+      "MRR@10": 0.6900686400686401,
+      "Hit@1": 0.5684394071490846,
+      "Hit@10": 0.9075850043591979,
+      "MeanRecall@10": 0.8307038130360457,
+      "Hit@50": 0.9734088927637314,
+      "MeanRecall@50": 0.9347424395655304,
+      "PoolHit": 0.9734088927637314,
+      "PoolRecall": 0.9347424395655304,
+      "gold50": 1.3966870095902355,
+      "pool_size": 49.93809938971229
+    },
+    "development500": {
+      "MAP@10": 0.6204738892038297,
+      "MRR@10": 0.6956952380952381,
+      "Hit@1": 0.574,
+      "Hit@10": 0.916,
+      "MeanRecall@10": 0.8325904761904762,
+      "Hit@50": 0.976,
+      "MeanRecall@50": 0.9337238095238095,
+      "PoolHit": 0.976,
+      "PoolRecall": 0.9337238095238095,
+      "gold50": 1.43,
+      "pool_size": 49.9
+    },
+    "remaining1794": {
+      "MAP@10": 0.6222391715845595,
+      "MRR@10": 0.6885004689352515,
+      "Hit@1": 0.5668896321070234,
+      "Hit@10": 0.9052396878483835,
+      "MeanRecall@10": 0.8301779871847551,
+      "Hit@50": 0.9726867335562988,
+      "MeanRecall@50": 0.9350263386852967,
+      "PoolHit": 0.9726867335562988,
+      "PoolRecall": 0.9350263386852967,
+      "gold50": 1.3874024526198439,
+      "pool_size": 49.94871794871795
+    }
+  },
+  "legacy_controls": [
+    "L0",
+    "S0",
+    "H0",
+    "B40+A_fill_RRF60",
+    "historical_C3_FULL"
+  ],
+  "files_sha256": {
+    "src/bug_localization/lightweight_hypothesis.py": "d5ef0e8c4d7d1279e344a131081432b7b5514f94e487302d35d7b412e9ce16a4",
+    "src/bug_localization/bm25.py": "11972341a882fbbd727372ffed11c753dabf068140c8c2b555aaff7a0b3be858",
+    "src/bug_localization/batch.py": "06de099f3927192b01c8361fa8df5f24192fe37fc5165f493b8c4475a2b2cbec",
+    "scripts/retrieval/run_current_baseline.py": "9a5aa1b0057759967e758628b942cc7d2cd448c53dcb8ad098d49aa461e59b72",
+    "results/b_lightweight/20261122_v1/protocol.json": "5ef0fc19950c4e493ee398d53bde3749b0eddec25f1df632452eab0f3e7fee78",
+    "results/b_lightweight/20261122_v1/selection.json": "06d1e75dbc1e43b41ccdd4d7718e5e3658960a67f1575ceaf4e5d744b9f30f5b",
+    "results/b_lightweight/20261122_v1/frozen_choice.json": "8626dc58fabd613bf31d30d387b5aed3b97c8bfe815677f1ed1cf346d6557134",
+    "results/b_lightweight/20261122_v1/summary.json": "b1757736c656945526b9b9dc089b0a08cfdeb866453b38a84d8de30d8cc7455d",
+    "results/b_lightweight/20261122_v1/verification.json": "49674561e92fcbeb74b9f9b7217f6090090805acd6beab035da2cab69f57f6be",
+    "results/b_lightweight/20261122_v1/independent_audit.json": "6c68d8f1e928e08fc0a6adb581e087925a309d1f25177134e239838e61be2929",
+    "results/b_lightweight/20261122_v1/robustness_vs_previous.json": "9b0562f040cf59aabb0acfdcb491995f7fdc2ecb3c740aea73fac0dad5fd1c03"
+  }
+}

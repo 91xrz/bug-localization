@@ -1,0 +1,39 @@
+{
+  "dataset_metadata_sha256": "439cbd4e577f0ccab3eb4aa9f46882d93595c212b76ab8fe29b940b3abddab5e",
+  "selection_sha256": "68c0b6c2da96becb8fb1bb5317cb8176e67348c2b2ded1a72300d6e3faded7b7",
+  "selection_rule": "Operational checks only: no-inspection failure, prior EAR overflow, normal control; not accuracy evaluation",
+  "samples": [
+    {
+      "position": 1,
+      "dataset_row": 1320,
+      "repository": "pylint-dev/pylint",
+      "issue_id": 4421,
+      "before_fix_sha": "24b5159e00b8a380c1776dab6ce096df7bad79b1",
+      "query_sha256": "6cf5b5cb723b60f017a996464a1a2a9be1d54fe66b531397369c4caca4ebafb5",
+      "labels_sha256": "f67e7f526875cb5794d2b1b6b7236ee1d9a54573ab6cfae3da753d1868ac9e05"
+    },
+    {
+      "position": 2,
+      "dataset_row": 1011,
+      "repository": "matplotlib/matplotlib",
+      "issue_id": 23203,
+      "before_fix_sha": "028f07c869c4c0084c134a8b613aad4f5d111c7f",
+      "query_sha256": "f0a60c2ac73a06c23f19638b8c954342bdf7d17da7bccd397abee08b5810287f",
+      "labels_sha256": "431ad206a809886cbb7f20d885b10d91d9be7e4e54b1adcda47026c85f4188c2"
+    },
+    {
+      "position": 3,
+      "dataset_row": 6,
+      "repository": "astropy/astropy",
+      "issue_id": 12880,
+      "before_fix_sha": "b49ad06b4de9577648a55d499d914e08baeef2c6",
+      "query_sha256": "220749236268833f89eb1032420a381aca163e800e18510ecaba7ebe7dd55e80",
+      "labels_sha256": "20adad7a130994584538ca43d6439a400a4c56997dc7751385a7990aefdc97a2"
+    }
+  ],
+  "project_counts": {
+    "pylint-dev/pylint": 1,
+    "matplotlib/matplotlib": 1,
+    "astropy/astropy": 1
+  }
+}

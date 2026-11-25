@@ -1,0 +1,11 @@
+{
+  "semantic_config": "configs/retrieval/vector.json",
+  "repositories": ["psf/requests"],
+  "limit": 44,
+  "generation_model": "models/Qwen3-8B",
+  "max_new_tokens": 1536,
+  "max_input_tokens": 12000,
+  "fusion_weights": [0.25, 0.5, 1.0, 2.0],
+  "rrf_constants": [10, 30, 60],
+  "scope": "Requests 44 exploratory development set; no held-out performance claims"
+}

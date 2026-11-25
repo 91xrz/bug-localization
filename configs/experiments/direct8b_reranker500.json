@@ -1,0 +1,22 @@
+{
+  "selection": "configs/experiments/selections/crossproject_500_seed20261111.json",
+  "source_config": "configs/experiments/chunk_ablation500.json",
+  "baseline": "results/module_ablation/20261116_rrf500",
+  "head": 10,
+  "rrf_k": 60,
+  "candidate_policy": "hypothesis Top40, original unique padding to 50; equal-weight RRF within pool",
+  "evidence_policy": "original Top1 plus distinct hypothesis chunks up to 3 per file",
+  "query_policy": "complete original report, no cleaning or truncation",
+  "failure_policy": "zero in all 500; preserve upstream failure; no fallback",
+  "generator": {
+    "generation_model": "models/Qwen3-8B",
+    "inference_endpoint": "http://127.0.0.1:8099",
+    "server_manifest": "models/BLAgent-Qwen3-8B-BF16/manifest.json",
+    "server_slots": 2,
+    "max_context_tokens": 32768,
+    "max_new_tokens": 2048,
+    "max_calls": 2,
+    "seed": 42,
+    "request_timeout": 600
+  }
+}

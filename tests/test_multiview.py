@@ -29,7 +29,7 @@ class MultiViewRunnerTests(unittest.TestCase):
              patch('bug_localization.multiview.QueryGenerator') as generator, \
              patch('elasticsearch.Elasticsearch') as es, \
              patch('bug_localization.multiview.LocalEmbedder') as encoder, \
-             patch('bug_localization.multiview.DependencyRoutingCache') as cache, \
+             patch('bug_localization.multiview.RoutingChunkCache') as cache, \
              patch('bug_localization.multiview.get_snapshot', return_value=(root, {})), \
              patch('bug_localization.multiview.collect_files', return_value=(docs, [])), \
              patch('bug_localization.multiview.retrieve', return_value={'ranking': ranking}) as retrieve, \

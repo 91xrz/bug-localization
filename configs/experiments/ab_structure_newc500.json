@@ -1,0 +1,25 @@
+{
+  "selection": "configs/experiments/selections/crossproject_500_seed20261111.json",
+  "paired_max_run": "results/ab_structure_c/20261123_fixed500",
+  "joint_reference": "results/c_evidence_prior/20261123_full500",
+  "ab_study": "results/b_lightweight/20261122_v1",
+  "baseline_run": "results/baselines/20261122_ab_structure_v1",
+  "output": "results/ab_structure_newc/20261123_fixed500",
+  "packet_weight": 0.25,
+  "prior_weight": 4.0,
+  "head": 10,
+  "gpu_ids": [0, 1],
+  "minimum_free_mib": 6000,
+  "primary": "new_pool_new_C",
+  "candidate_policy": "Frozen ab_structure_v1 Top50; identical original500 identity/order",
+  "pipeline": "New AB Top50 -> mixed selected blocks -> file Max C ranking -> refine only that C Top10 using 0.75z+0.25u+4p; keep membership and tail",
+  "shared_score_policy": "Reuse verified fresh paired Max scores for both pools. Reuse joint scores only for byte-identical query and file packet under the frozen model/config; score all missing new-candidate packets. Both arms share every common score.",
+  "failure_policy": "Keep all500 and existing upstream failure as zero; infrastructure/integrity errors stop. No fallback or label-based filtering.",
+  "primary_contrasts": [
+    ["new_pool_new_C", "old_pool_new_C"],
+    ["new_pool_new_C", "new_pool_Max"]
+  ],
+  "statistics": "5000 paired report and project-cluster bootstrap plus paired randomization; Holm across two contrasts times MAP/MRR/Top1/Top10/Recall10",
+  "diagnostic": "new_pool_new_C_full50 is a separately labeled ablation; never select between it and the frozen head10 primary using these outcomes",
+  "scope": "Observed development500; no retuning AB or C. Incremental execution, not fresh inference of every cached pair; not an end-to-end latency benchmark."
+}

@@ -1,0 +1,23 @@
+{
+  "source_run": "results/recall_full/20261118_swe2294_v2",
+  "output": "results/a_improvements/20261122_v1",
+  "expected_samples": 2294,
+  "development": "Existing selection.development_rows: 500 reports",
+  "validation": "Remaining 1794 previously observed reports; not an independent blind test",
+  "aggregation": {"top_mean_k": [2, 3], "max_top3_mix": [0.25, 0.5], "lse_temperature": [0.02, 0.05, 0.1]},
+  "length_penalty": [0.002, 0.005, 0.01],
+  "anchor_weights": [0.1, 0.25, 0.5, 1.0],
+  "anchor_depths": [50, 200],
+  "prf_feedback_files": [1, 3, 5],
+  "prf_beta": [0.1, 0.25, 0.5],
+  "prf_scope": "Rerank original top50 using each file's original best chunk; q'=(1-beta)*q+beta*mean(top-k best-chunk vectors), L2 normalized. No full-corpus second retrieval; explicitly a constrained PRF experiment.",
+  "anchor_scope": "Only original report body and before-fix source definitions. IDF independently computed within each fixed A-only depth. No B, generated hypotheses, patches, or labels as features.",
+  "selection_rule": "For each family select maximum development MAP, ties by method name. Adoptable only if development MAP gain>=0.005, MRR/Hit10/Hit50/Recall50 do not decrease. Freeze each family winner and global eligible winner before validation. Negative family winners are still evaluated as diagnostics.",
+  "combination_bases": ["max_top3_w0.25", "length_p0.005"],
+  "combination_rule": "Predeclared max_top3_w0.25 and length_p0.005 combined with each anchor weight/depth; pool is top-depth of modified scores. Treat as a separate family. Freeze all choices before reading validation results.",
+  "primary_validation_metrics": ["MAP@10", "MRR@10", "Hit@10", "Hit@50", "MeanRecall@50"],
+  "statistics": "5000 paired project-stratified bootstrap/sign randomizations, Holm across every frozen family and primary metric; project macro, leave-one-project-out, repeated development splits and duplicate-query sensitivity",
+  "failure_policy": "Preserve all source reports and missing labels. A failure is zero; infrastructure/integrity errors stop. No dependence on B success.",
+  "default_change": "Research artifacts only; preserve frozen current ab_structure_v1 and historical A",
+  "references": ["https://mattlease.com/papers/saha-ase13.pdf", "https://arxiv.org/abs/2210.11934", "https://hangli.me/files/adcs2022.pdf", "https://arxiv.org/abs/1808.00594"]
+}

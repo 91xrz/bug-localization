@@ -1,0 +1,32 @@
+{
+  "base_config": "configs/retrieval/bm25.json",
+  "semantic_config": "configs/retrieval/vector.json",
+  "author_checkout": ".runtime/external-baselines/blagent-code",
+  "selection_manifest": "configs/experiments/selections/blagent_recovery19_20261118.json",
+  "repositories": [],
+  "limit": null,
+  "generation_model": "models/Qwen3-8B",
+  "gpu_max_memory": {
+    "0": "10GiB",
+    "1": "10GiB"
+  },
+  "max_context_tokens": 32768,
+  "max_new_tokens": 2048,
+  "max_calls": 36,
+  "max_agent_iterations": 15,
+  "query_temperature": 0.7,
+  "agent_temperature": 0.5,
+  "ear_temperature": 0.0,
+  "seed": 42,
+  "generation_backend": "llama_server",
+  "inference_endpoint": "http://127.0.0.1:8099",
+  "server_manifest": "models/BLAgent-Qwen3-8B-BF16/manifest.json",
+  "server_slots": 2,
+  "recovery_protocol": "bounded-v2",
+  "score_repair_attempts": 2,
+  "ear_repair_attempts": 1,
+  "recovery_skeleton_tokens": 1024,
+  "ear_skeleton_tokens": 2048,
+  "stop_after_failures": 0,
+  "retrieval_lock": "/home/xrz/IRBL/bug-localization/.runtime/blagent-retrieval.lock"
+}

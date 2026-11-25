@@ -8,7 +8,7 @@ import sys
 PROJECT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT / 'src'))
 
-from bug_localization.vector import RETRIEVAL_ROUTES, run_semantic_batch
+from bug_localization.vector import RETRIEVAL_ROUTES, active_routes, run_semantic_batch
 from bug_localization.aggregation import AGGREGATIONS
 
 
@@ -23,6 +23,8 @@ def main():
     parser.add_argument('--temperature', type=float, help='Normalized LogSumExp temperature (default 0.1)')
     parser.add_argument('--routes', nargs='+', choices=RETRIEVAL_ROUTES, help='Chunking routes to evaluate')
     parser.add_argument('--ast-max-chars', type=int, help='BLagent AST sibling-packing character budget (default 1500)')
+    parser.add_argument('--rerank', action='store_true', help='Run paired Qwen3 reranking after semantic retrieval')
+    parser.add_argument('--reranker-config', type=Path, default=PROJECT / 'configs/retrieval/reranker.json')
     fusion = parser.add_mutually_exclusive_group()
     fusion.add_argument('--fusion', dest='enable_fusion', action='store_true', default=None,
                         help='Also evaluate the two-route and three-route RRF controls')
@@ -53,9 +55,19 @@ def main():
         config['ast_max_chars'] = args.ast_max_chars
     if args.enable_fusion is not None:
         config['enable_fusion'] = args.enable_fusion
-    _, summary = run_semantic_batch(PROJECT, config)
+    if args.rerank:
+        from bug_localization.reranking import run_reranking, validate_config as validate_reranker_config
+        reranker_config = json.loads((PROJECT / args.reranker_config).read_text(encoding='utf-8'))
+        if args.device:
+            reranker_config['device'] = args.device
+        validate_reranker_config(reranker_config)
+    folder, summary = run_semantic_batch(PROJECT, config)
     if any(route['failed_samples'] for route in summary['routes'].values()):
         raise SystemExit(1)
+    if args.rerank:
+        _, reranked = run_reranking(PROJECT, folder, reranker_config, list(active_routes(config)))
+        if reranked['status'] != 'completed':
+            raise SystemExit(1)
 
 
 if __name__ == '__main__':

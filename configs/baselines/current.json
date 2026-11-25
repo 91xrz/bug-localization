@@ -1,0 +1,10 @@
+{
+  "initial_ranking": {
+    "id": "ab_structure_v1",
+    "config": "configs/baselines/ab_structure_v1.json",
+    "sha256": "c0d2f89f93e81b26a3850f579370feb3c210c444892e54a7909bcc0b4fb5f5b7"
+  },
+  "default_entrypoint": "scripts/retrieval/run_current_baseline.py",
+  "legacy_reranking_entrypoint": "scripts/experiments/run_reranker_full.py",
+  "note": "New initial-ranking experiments use this fixed baseline. Historical frozen runners retain their original meaning; no implicit C replacement."
+}

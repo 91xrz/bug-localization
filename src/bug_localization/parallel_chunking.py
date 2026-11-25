@@ -12,12 +12,12 @@ def _initialize(project, config, fingerprint):
     global _cache
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     from transformers import AutoTokenizer
-    from .ast_local_experiment import LocalRoutingCache
+    from .ast_chunking import RoutingChunkCache
     path = (Path(project) / config['model_path']).resolve()
     tokenizer = AutoTokenizer.from_pretrained(str(path), local_files_only=True,
                                                trust_remote_code=False, padding_side='left')
     tokenizer.model_max_length = 10**9
-    _cache = LocalRoutingCache(Path(project), tokenizer, config, fingerprint)
+    _cache = RoutingChunkCache(Path(project), tokenizer, config, fingerprint)
 
 
 def _chunk(item):

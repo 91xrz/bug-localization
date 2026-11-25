@@ -1,0 +1,17 @@
+{
+  "selection": "configs/experiments/selections/crossproject_500_seed20261111.json",
+  "control_run": "results/hypothesis_reranking/20261111_153819_040009_500",
+  "old_semantic": "results/report_hypothesis/20261110_023926_805713_retrieval",
+  "old_hypothesis": "results/direct_report_hypothesis/20261110_113033_098831_retrieval",
+  "reference_reranker": "results/hypothesis_reranking/20261111_151232_400600_original_query/reranking/effective_config.json",
+  "reranker_config": "configs/retrieval/reranker.json",
+  "primary_count": 40,
+  "total_candidates": 50,
+  "chunk_policy": "original_semantic_top3_for_all_candidates",
+  "reranker_query_source": "original_report",
+  "tie_breaker": "original_semantic_rank",
+  "methods": {"C": "hypothesis", "D": "original"},
+  "physical_gpus": {"C": "0", "D": "1"},
+  "failure_policy": "Require both recall routes; failures contribute zero, keep all 500 reports",
+  "historical_control_caveat": "B uses hypothesis-semantic Top-3 chunks; C and D use original-semantic Top-3. Prefer the direct C vs D contrast to isolate primary file recall."
+}

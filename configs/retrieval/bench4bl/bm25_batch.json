@@ -1,7 +1,0 @@
-{
-  "base_config": "configs/retrieval/bench4bl/bm25.json",
-  "repositories": [
-    "Bench4BL/Commons_CSV"
-  ],
-  "limit": 5
-}
